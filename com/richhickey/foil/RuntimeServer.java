@@ -14,7 +14,6 @@
 package com.richhickey.foil;
 
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
 import java.net.*;
 import java.util.List;
 
@@ -54,7 +53,9 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 		{
 	    String resultMessage = null;
 		try{
-			List message = reader.readMessage(ins);
+			String form = slurpForm(ins);
+			List message = reader.readMessage(new StringReader(form));
+			//List message = reader.readMessage(ins);
 			if(isMessage(":call",message))
 			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
 			    {
@@ -220,6 +221,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 		    outs.write("(:err");
 			marshaller.marshallAtom(ex.toString(),outs,0,0);
 			StringWriter sw = new StringWriter();
+			
 			//marshaller.marshallAsList(ex.getStackTrace(),outs,0,1);
 			ex.printStackTrace(new PrintWriter(sw));
 			marshaller.marshallAtom(sw.toString(),outs,0,0);
@@ -274,6 +276,45 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    else
 	        throw new Exception("expecting type arg, either reference or packageQualifiedName string");
 	    }
+	
+	static String slurpForm(Reader strm) throws IOException
+		{
+		StringWriter sw = new StringWriter();
+		
+		while(strm.read() != '(')
+			;
+		int parenCount = 1;
+		sw.write('(');
+		boolean inString = false;
+		boolean escape = false;
+		do{
+			int c = strm.read();
+			if(c == '(')
+				{
+				if(!inString)
+					++parenCount;
+				}
+			else if(c == ')')
+				{
+				if(!inString)
+					--parenCount;
+				}
+			else if(c == '"')
+				{
+				if(!escape)
+					inString = !inString;
+				}
+			
+			if(inString && c == '\\')
+				escape = true;
+			else
+				escape = false;
+			
+			sw.write(c);
+		}while(parenCount > 0);
+		
+		return sw.toString();
+		}
 	
 	static boolean isMessage(String type,List message)
 	    {
