@@ -34,7 +34,8 @@ Sendable messages:
 
 <li>	(:cref</li>
 	<li>(:call</li>
-	<li>(:free</li>
+		<li>(:free</li>
+		<li>(:new</li>
 	<li>(:marshall</li>
 	<li>(:hash</li>
 	<li>(:equals</li>
@@ -59,20 +60,19 @@ Sendable messages:
 
 <h3>Invocation Services</h3>
 	Obtaining callable references (crefs)
-<p>	<code>(:cref ctype tref|"packageQualifiedTypeName" "memberName")</code>
-<p>		Where ctype is one of:
+<p>	<code>(:cref member-type tref|"packageQualifiedTypeName" "memberName")</code>
+<p>		Where member-type is an integer representing one of:
 <ul>		 
-			<li>:method</li>
-			 <li>:ctor</li>
-			 <li>:field-get</li>
-			 <li>:field-set</li>
-			 <li>:property-get</li>
-			 <li>:property-set</li>
-			 <li>:static-method</li>
-			 <li>:static-field-get</li>
-			 <li>:static-field-set</li>
-			 <li>:static-property-get</li>
-			 <li>:static-property-set</li>
+			<li>method (0)</li>
+			 <li>field-get (1)</li>
+			 <li>field-set (2) </li>
+			 <li>property-get (3)</li>
+			 <li>property-set (4)</li>
+			 <li>static-method (5)</li>
+			 <li>static-field-get (6)</li>
+			 <li>static-field-set (7) </li>
+			 <li>static-property-get (8)</li>
+			 <li>static-property-set (9)</li>
  </ul>
 <p>		Wherever a packageQualifiedTypeName is required, if the namespace/package is not included, 
 		package is presumed to be the base namespace of the runtime (i.e. java.lang or System)
@@ -83,6 +83,8 @@ Sendable messages:
 
 <p>		Returns -> A reference to a callable thing is returned in the standard return format (see below).
 <p>		<code>(:ret #{:ref ...})</code>
+
+<p> 	<code>(:new tref marshall-flags marshall-value-depth-limit (args ...) (property-inits ...) )</code><br>
 
 <p>	Calling a callable <br>
 			<code>(:call cref marshall-flags marshall-value-depth-limit args ...)</code><br>
@@ -153,11 +155,11 @@ Sendable messages:
 
 				Reference types are returned with the following tagged syntax:<br>
 
-				<code>#{:ref :id an-int :type a-ref :hash an-int :data marshalled-value}</code>
+				<code>#{:ref :id an-int :type a-ref :hash an-int :val marshalled-value}</code>
 				<ul>
 
 
-				<li>:ref must be first, and at least one of :id or :data must be supplied, all others are optional</li>
+				<li>:ref must be first, and at least one of :id or :val must be supplied, all others are optional</li>
 
 				<li>:id A unique integer reference that identifies the object. The object will be kept alive on the hosting side 
 					until it is freed. Multiple references to the same object will always have the same id. 
@@ -169,7 +171,7 @@ Sendable messages:
 
 				<li>:hash An integer representing the hash value of the object. This will only be available if the marshall-hash flag is set.</li>
 
-				<li>:data A Lisp-readable representation of the value of the object. This will be obtained by using the marshaller 
+				<li>:val A Lisp-readable representation of the value of the object. This will be obtained by using the marshaller 
 					registered for the type of the object. This will only be available when marshall-value-depth-limit is > 0. 
 					Note #{ and #} user-space read macros are used by the implementation of foil.</li>
 	
@@ -224,7 +226,7 @@ Sendable messages:
  <p><h3>Reflection Services</h3>
 
 
-	Note, when trefs are returned by these reflection calls, the :data field of the reference is always (default) marshalled, 
+	Note, when trefs are returned by these reflection calls, the :val field of the reference is always (default) marshalled, 
 	i.e. set to the packageQualifiedTypeName as a string.
 
 	<p><h4>Obtaining a reference to a Type/Class object</h4>
@@ -234,7 +236,7 @@ Sendable messages:
 		<code>(:type-of ref)</code> -> tref<br>
 
 
-	<p><code>(:is-a tref ref)</code> -> t|nil<br>
+	<p><code>(:is-a ref tref)</code> -> t|nil<br>
 
 	<p><code>(:reflect tref|"packageQualifiedTypeName")</code><br>
 
