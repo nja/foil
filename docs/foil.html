@@ -26,6 +26,10 @@
 		<li>
 			<a href="#download">Download</a>
 		</li>
+        <li>
+			<a href="#quickstart">Quick Start</a>
+		</li>
+
 		<li>
 			<a href="#api">API Reference</a>
 			<ul>
@@ -183,6 +187,41 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
     so please use the project tracker and forums there.
 	</p>
 
+   	<a name="quickstart"></a> <h3>Quick Start</h3>
+    Build and start the Java or CLI <a href="#runtimeservers">runtime server</a> of your choice.
+
+<pre>
+(compile-file "/dev/foil/foil.lisp")
+(load "/dev/foil/foil")
+(use-package :foil)
+;this is specific to LispWorks' sockets support
+(require "comm")
+;create a foreign VM
+(setf *fvm* (make-instance 'foreign-vm
+                           :stream
+                           (comm:open-tcp-stream "localhost" 13579)))
+
+;;;;;;;;; if Java ;;;;;;;;;;;
+;create a wrapper for dialog class
+(def-foil-class "javax.swing.JOptionPane")
+;use the wrapper
+(use-package "javax.swing")
+;show it
+(joptionpane.showmessagedialog nil "Hello World from Lisp")
+
+;;;;;;;;; if CLI ;;;;;;;;;;;;
+;create a wrapper for dialog class
+(def-foil-class "System.Windows.Forms.MessageBox")
+;use the wrapper
+(use-package "System.Windows.Forms")
+;show it
+(messagebox.show "Hello World from Lisp")</pre>
+
+<p>
+Typically you wouldn't define single class wrappers by hand, but would instead pre-generate wrappers for entire packages using
+<code>get-library-classnames</code> and <code>dump-wrapper-defs-to-file</code>. See <code>foil-java.lisp</code> and 
+<code>foil-cli.lisp</code> for examples.
+</p>
 
 	<a name="api"></a> <h2>Lisp API Reference</h2>
 
@@ -450,33 +489,23 @@ CLASS.      </pre>
 
 		</li>
 				<li>
-            			<strong>Function</strong> <code>(get-jar-classnames jar-file-name &rest packages) 
+            			<strong>Function</strong> <code>(get-library-classnames jar-or-assembly-filename &rest packages) 
 			-> list-of-strings</code>
 			<p>
-			Returns a list of class name strings. Packages should be strings of the form "java/lang 
-			 " for recursive lookup and "java/util/" (note trailing slash) for non-recursive. This function
-                    is in <code>foil-java.lisp</code> and is only for Java.
-			</p>
+			Returns a list of class name strings. Packages should be strings of the form "java/lang" or "System/IO"
+                    for recursive lookup and "java/util/" or "System/IO/" (note trailing slash) for non-recursive. </p>
 				</li>
-				<li>
-            			<strong>Function</strong> <code>(get-assembly-classnames assembly-file-name &rest packages) 
-			-> list-of-strings</code>
-			<p>
-			Returns a list of class name strings.  Assemblies should be of the form "System/IO"
-  for recursive lookup and "System/IO/" for non-recursive (note trailing slash). This function
-                    is in <code>foil-cli.lisp</code> and is only for the CLI.
-			</p>
-				</li>
+				
 		<li>
 			<strong>Function</strong> <code>(dump-wrapper-defs-to-file filename classnames)  -> 
-			unspecified</code>
+			filename</code>
 			<p>
-			Given a list of classnames (say from <code>get-jar-classnames</code> or <code>get-assembly-classnames</code>), writes 
+			Given a list of classnames (say from <code>get-library-classnames</code>), writes 
 			the consolidated expansions of calls to <code>def-foil-class</code> to a file:
 			</p>
 			<pre>
 (dump-wrapper-defs-to-file "/lisp/java-lang.lisp"
-  (get-jar-classnames "/j2sdk1.4.2_01/jre/lib/rt.jar " "java/lang/"))
+  (get-library-classnames "/j2sdk1.4.2_01/jre/lib/rt.jar " "java/lang/"))
 (compile-file "/lisp/java-lang")
 (load "/lisp/java-lang")
 (use-package "java.lang")
