@@ -97,7 +97,7 @@ namespace com.richhickey.foil
 			else if(c == '}')	// }id
 				{
 				strm.Read();
-				int id = Convert.ToInt32(readToken(strm));
+				Object	id = Convert.ToInt32(readToken(strm));
 				return referenceManager.getObjectForId(id);
 				}
 			else if(c == '\\')

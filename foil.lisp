@@ -672,3 +672,12 @@ The resulting file will not need a VM running to either compile or load"
 (defmethod handle-proxy-call (method-symbol proxy &rest args)
   (format t "unhandled :proxy-call ~S ~S ~S~%" method-symbol proxy args)
   nil)
+
+;;; Eric
+;;;;;;;;;;;;;;;;indexer-support;;;;;;;;;;;;;;;;
+(defun iref (indexable-obj &rest inxs)
+  (apply #'send-message :iget indexable-obj *marshalling-flags* *marshalling-depth* inxs))
+
+(defun (setf iref) (val obj-ref &rest inxs)
+  (apply #'send-message :iset obj-ref (append inxs (list val))))
+

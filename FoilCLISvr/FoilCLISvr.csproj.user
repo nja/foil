@@ -11,7 +11,7 @@
                     RemoteDebugEnabled = "false"
                     RemoteDebugMachine = ""
                     StartAction = "Project"
-                    StartArguments = '(:test (+ 12 34) ("str" 12 34.5))'
+                    StartArguments = "13245"
                     StartPage = ""
                     StartProgram = ""
                     StartURL = ""

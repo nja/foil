@@ -8,23 +8,24 @@
  *   By using this software in any fashion, you are agreeing to be bound by
  * 	 the terms of this license.
  *   You must not remove this notice, or any other, from this software.
+ * 
+ * 
  */
 using System;
-
-/**
- * @author Eric Thorsen
- *
- */
 
 namespace com.richhickey.foil
 {
 	/// <summary>
-	/// Summary description for IReferenceManager.
+	/// Summary description for ObjectID.
 	/// </summary>
-	public interface IReferenceManager
+	public class ObjectID 
 	{
-		ObjectID getIdForObject(Object o);
-		Object getObjectForId(Object id);
-		void free(Object id,int rev);
+		public int id;
+		public int rev;
+		public ObjectID(int id)
+		{
+			this.id = id;
+			this.rev = 0;
+		}
 	}
 }

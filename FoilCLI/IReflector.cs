@@ -23,15 +23,17 @@ namespace com.richhickey.foil
 {
 	public interface IReflector
 	{
-		ICallable getCallable(int memberType, Type	c, String memberName);
-		Object createNew(Type c, ArrayList args);
-		void members(Type c,TextWriter w);
-		ArrayList bases(Type c);
-		Object createVector(Type c,int length,ArrayList inits);
-		Object vectorGet(Object v,int index) ;
-		void vectorSet(Object v,int index,Object val);
-		Object vectorLength(Object v);
-		void setProps(Object o, ArrayList nameValuePairs);
-		Object makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,ArrayList interfaces);
+		ICallable	getCallable(int memberType, Type	c, String memberName);
+		Object		createNew(Type c, ArrayList args);
+		void		members(Type c,TextWriter w);
+		ArrayList	bases(Type c);
+		Object		createVector(Type c,int length,ArrayList inits);
+		Object		vectorGet(Object v,int index) ;
+		void		vectorSet(Object v,int index,Object val);
+		Object		indexerGet(Object v,ArrayList indexes) ;
+		void		indexerSet(Object v,ArrayList indexesAndVal);
+		Object		vectorLength(Object v);
+		void		setProps(Object o, ArrayList nameValuePairs);
+		Object		makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,ArrayList interfaces);
  	}
 }

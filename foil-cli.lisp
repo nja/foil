@@ -50,3 +50,14 @@
 )
  
 ;(gen-wrappers) 
+
+(defun test-hash-indexer()
+  (let ((ht (hashtable.new)))
+    (setf (foil::iref ht "Fred") 50
+          (foil::iref ht "Betty") 100
+          (foil::iref ht 100) nil
+          (foil::iref ht 23.4) t
+          (foil::iref ht "More") " and more")
+    (doenum (e (ienumerable.getenumerator (hashtable.keys ht)))
+               (format t "key=~A value=~A~%" e (foil::iref ht e)))))
+

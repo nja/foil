@@ -31,20 +31,19 @@ namespace com.richhickey.foil
 			objToId = new Hashtable();
 		}
 
-		public int getIdForObject(Object o)
+		public ObjectID getIdForObject(Object o)
 		{
-			Object tid	=	objToId[o];
+			ObjectID tid	=	(ObjectID)objToId[o];
 			if(tid==null)
 			{
-				idToObj[this.nextId]	=	o;
-				objToId[o]				=	this.nextId;
-				return this.nextId++;
+				tid	=	new ObjectID(this.nextId++);
+				idToObj[tid.id]	=	o;
+				objToId[o]		=	tid;
 			}
-			else
-				return (Int32)tid;
+			return (ObjectID)tid;
 		}
 
-		public Object getObjectForId(int id) 
+		public Object getObjectForId(Object id) 
 		{
 			Object o = idToObj[id];
 			if(o == null)
@@ -52,11 +51,15 @@ namespace com.richhickey.foil
 			return o;
 		}
 	
-		public void free(int id) 
+		public void free(Object id,int rev) 
 		{
-			Object o = getObjectForId(id);
-			objToId.Remove(o);
-			idToObj.Remove(id);
+			Object o		= getObjectForId(id);
+			ObjectID oid	= getIdForObject(o);
+			if(oid.rev == rev)
+			{
+				objToId.Remove(o);
+				idToObj.Remove(id);
+			}
 		}
 	}
 }

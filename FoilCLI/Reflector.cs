@@ -482,6 +482,46 @@ namespace  com.richhickey.foil
             }
         throw new Exception("can't find property");
 	    }
+
+		public	Object		indexerGet(Object o,ArrayList indexes) 
+		{
+			PropertyInfo prop = o.GetType().GetProperty("Item",BindingFlags.Instance|BindingFlags.Public);
+			if(prop!=null)
+			{
+				MethodInfo method = prop.GetGetMethod();
+				if(method != null)
+				{
+					Object[] args = boxArgs(method.GetParameters(),indexes);
+					return	method.Invoke(o,args);
+				}
+				else
+					throw new Exception(String.Format("No get method for indexer property \"Item\" for type {0}.  Could be write only?",o.GetType()));
+			}
+			throw new Exception(String.Format("Can't find indexer property \"Item\" for type {0}.",o.GetType()));
+		}
+
+		/// <summary>
+		/// Eric Thorsen - Assumes the last element in 'indexes' is the value to be assigned.
+		/// </summary>
+		/// <param name="o"></param>
+		/// <param name="indexes"></param>
+		public	void		indexerSet(Object o,ArrayList indexes)
+		{
+			PropertyInfo prop = o.GetType().GetProperty("Item",BindingFlags.Instance|BindingFlags.Public);
+			if(prop!=null)
+			{
+				MethodInfo method = prop.GetSetMethod();
+				if(method != null)
+				{
+					Object[] args = boxArgs(method.GetParameters(),indexes);
+					method.Invoke(o,args);
+				}
+				else
+					throw new Exception(String.Format("No set method for indexer property \"Item\" for type {0}.  Could be read only?",o.GetType()));
+			}
+			else
+				throw new Exception(String.Format("Can't find indexer property \"Item\" for type {0}.",o.GetType()));
+		}
 		 
     public ArrayList bases(Type c) 
 	 {

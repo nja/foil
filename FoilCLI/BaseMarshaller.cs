@@ -114,12 +114,12 @@ namespace com.richhickey.foil
 			{
 				if((flags & IBaseMarshallerFlags.MARSHALL_ID) != 0)
 				{
-					w.Write("#{:ref");
+					w.Write("#{:ref ");
+
+					ObjectID oid = referenceManager.getIdForObject(o);
+					++oid.rev;
+					w.Write("{0} {1}",oid.id,oid.rev);
             
-					if((flags & IBaseMarshallerFlags.MARSHALL_ID) != 0)
-					{
-						w.Write(" :id {0}",referenceManager.getIdForObject(o));
-					}
 					if((flags & IBaseMarshallerFlags.MARSHALL_HASH) != 0)
 					{
 						w.Write(" :hash {0}",o.GetHashCode());
@@ -143,7 +143,7 @@ namespace com.richhickey.foil
             
 					w.Write('}');
 				}
-				else	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
+				else if(depth > 0)	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
 				{
 					IMarshaller m = findMarshallerFor(c);
 					if(m != null)
@@ -155,13 +155,17 @@ namespace com.richhickey.foil
 						w.Write("nil");
 					}
 				}
+				else
+				{
+					w.Write("nil");
+				}
 			}
 		}
 
 		/* (non-Javadoc)
 		 * @see com.richhickey.foil.IBaseMarshaller#marshallAsList(java.lang.Object, java.io.Writer, int, int)
 		 */
-		public void marshallAsList(Object o, TextWriter w, int flags, int depth) 
+		public void doMarshallAsList(Object o, TextWriter w, int flags, int depth) 
 		{
 			w.Write('(');
 			IEnumerator	i = null;
@@ -178,13 +182,19 @@ namespace com.richhickey.foil
 			w.Write(')');
 		}
 
+		public void marshallAsList(Object o, TextWriter w, int flags, int depth) 
+		{
+			w.Write(' ');
+			doMarshallAsList(o,w,flags,depth);
+		}
+
 		/* (non-Javadoc)
 		 * @see com.richhickey.foil.IBaseMarshaller#marshallAsVector(java.lang.Object, java.io.Writer, int, int)
 		 */
 		public void marshallAsVector(Object o, TextWriter w, int flags, int depth) 
 		{
 			w.Write('#');
-			marshallAsList(o,w,flags,depth);
+			doMarshallAsList(o,w,flags,depth);
 		}
 
 		public Boolean canMarshallAsList(Object o)

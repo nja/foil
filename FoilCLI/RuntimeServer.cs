@@ -59,13 +59,18 @@ namespace com.richhickey.foil
      */
 public Object processMessages(TextReader ins,TextWriter outs) 
 	{
+
+	proxyReader	=	ins;
+	proxyWriter	=	outs;
+
 	for(;;)
 		{
 	    String	resultMessage	=	null;
 		String	sin				=	null;
+		ArrayList message		=	null;
 		try{
-			sin					=	slurpForm(ins);
-			ArrayList message	=	reader.readMessage(new StringReader(sin));
+			sin			=	slurpForm(ins);
+			message		=	reader.readMessage(new StringReader(sin));
 			if(isMessage(":call",message))
 			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
 			    {
@@ -110,11 +115,17 @@ public Object processMessages(TextReader ins,TextWriter outs)
 			    {
 			    for(int i=1;i<message.Count;i++)
 			        {
-			        int id = intArg(message[i]);
-			        referenceManager.free(id);
+					Object	id	=	message[i++];
+			        int rev 	= 	intArg(message[i]);
+			        referenceManager.free(id,rev);
 			        }
 				resultMessage = createRetString(null,marshaller,0,0);
 			    }
+			else if(isMessage(":ret",message))
+				//only on callback, note will break out of message loop
+				{
+				return	message[1];
+				}
 			else if(isMessage(":str",message))
 			    //(:str refid)
 			    {
@@ -155,6 +166,21 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				reflector.vectorSet(message[1],index,message[3]);
 				resultMessage = createRetString(null,marshaller,0,0);
 			    }
+			//Eric - For .net indexers
+			else if(isMessage(":iget",message))
+			//(:iget indexable-object-ref marshall-flags marshall-value-depth-limit indexes...)
+			{
+				int marshallFlags	= intArg(message[2]);
+				int marshallDepth	= intArg(message[3]);
+				Object ret			= reflector.indexerGet(message[1],message.GetRange(4,message.Count-4));
+				resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			}
+			else if(isMessage(":iset",message))
+			//(:iset indexable-object-ref indexes... value)
+			{
+				reflector.indexerSet(message[1],message.GetRange(2,message.Count-2));
+				resultMessage = createRetString(null,marshaller,0,0);
+			}
 			else if(isMessage(":vlen",message))
 			    //(:vlen aref)
 			    {
@@ -206,13 +232,15 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				int marshallFlags = intArg(message[2]);
 				int marshallDepth = intArg(message[3]);
 				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
-				//			    IMarshaller m = marshaller.findMarshallerFor(ret.getClass());
-				//				StringWriter sw = new StringWriter();
-				//				sw.write("(:ret");
-				//				m.marshall(ret,sw,marshaller,marshallFlags,marshallDepth);
-				//				sw.write(')');
-				//				resultMessage = sw.toString(); 
 			}
+			else if(isMessage(":proxy",message))
+			//(:proxy marshall-flags marshall-value-depth-limit interface-trefs ...)
+				{
+				int marshallFlags = intArg(message[1]);
+				int marshallDepth = intArg(message[2]);
+				resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
+																	message.GetRange(3,message.Count)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+				}
 			else
 			{
 				throw new Exception("unsupported message");
@@ -230,10 +258,9 @@ public Object processMessages(TextReader ins,TextWriter outs)
 			//Console.WriteLine(ex.ToString());
 			//Console.WriteLine(ex.StackTrace);
 
-		    outs.Write("(:err \"");
-			outs.Write(ex.ToString());
-			outs.Write("\" ");
-			marshaller.marshallAsList(ex.StackTrace,outs,0,1);
+		    outs.Write("(:err");
+			marshaller.marshallAtom(ex.ToString(),outs,0,0);
+			marshaller.marshallAtom(ex.StackTrace,outs,0,0);
 			outs.Write(')');
 			outs.Flush();
 			//ET See if this gets rid of the bogus error message on the lisp side.
@@ -247,10 +274,11 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		    }
 		}
 	}
-		public Object proxyCall(int marshallFlags, int marshallDepth, MethodInfo method, Object proxy, Object[] args) 
-	  {
-			TextReader reader = (TextReader)proxyReader;
-			TextWriter writer = (TextWriter)proxyWriter;
+
+	public Object proxyCall(int marshallFlags, int marshallDepth, MethodInfo method, Object proxy, Object[] args) 
+	{
+		TextReader reader = (TextReader)proxyReader;
+		TextWriter writer = (TextWriter)proxyWriter;
 		
 		//form the call message:
 		//(:proxy-call method-symbol proxy-ref args ...)
@@ -269,18 +297,18 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		marshaller.marshallAtom(proxy,sw,IBaseMarshallerFlags.MARSHALL_ID,0);
 		
 		for(int i=0;i<args.Length;i++)
-	{
+		{
 		marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
+		}
+		
+		sw.Write(')');
+		
+		writer.Write(sw.ToString());
+		writer.Flush();
+		
+		
+		return processMessages(reader,writer);
 	}
-		
-	sw.Write(')');
-		
-	writer.Write(sw.ToString());
-	writer.Flush();
-		
-		
-	return processMessages(reader,writer);
-}
 
 		static String slurpForm(TextReader strm) 
 			{
@@ -319,16 +347,6 @@ public Object processMessages(TextReader ins,TextWriter outs)
 			return sw.ToString();
 			}
 
-		/*
-	public void processMessages(TextReader ins,TextWriter outs) 
-		{
-		//on this thread the main streams are also the proxy streams
-		proxyReader	=	ins;
-		proxyWriter	=	outs;
-		for(;;)
-			processMessage(ins,outs);
-		}
-*/
 	internal	static	String stringArg(Object o)
 	    {
 	    return (String)o;
