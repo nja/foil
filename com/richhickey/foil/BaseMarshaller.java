@@ -104,7 +104,7 @@ public class BaseMarshaller implements IBaseMarshaller
         else if(o instanceof String)
             {
             w.write('"');
-            w.write((String)o);
+    		w.write(((String)o).replaceAll("\\\\","\\\\\\\\").replaceAll("\"","\\\\\""));
             w.write('"');
             }
         else //write a reference
