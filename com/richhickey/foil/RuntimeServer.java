@@ -33,13 +33,16 @@ public class RuntimeServer implements IRuntimeServer
     IBaseMarshaller marshaller;
 
     IReferenceManager referenceManager;
+    
+    IReflector reflector;
 
     public RuntimeServer(IReader reader, IBaseMarshaller marshaller,
-            IReferenceManager referenceManager)
+            IReferenceManager referenceManager, IReflector reflector)
         {
         this.reader = reader;
         this.marshaller = marshaller;
         this.referenceManager = referenceManager;
+        this.reflector = reflector;
         }
 
     /*
@@ -57,10 +60,19 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
 			    {
 				ICallable c = (ICallable)message.get(1);
-				int marshallFlags = Integer.parseInt((String)message.get(2));
-				int marshallDepth = Integer.parseInt((String)message.get(3));
+				int marshallFlags = intArg(message.get(2));
+				int marshallDepth = intArg(message.get(3));
 				Object ret = c.invoke(message.subList(4,message.size()));
 				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
+			else if(isMessage(":cref",message))
+			    //(:cref member-type tref|"packageQualifiedTypeName" "memberName")
+			    {
+			    int memberType = intArg(message.get(1));
+			    Class c = typeArg(message.get(2));
+			    String memberName = stringArg(message.get(3));
+			    ICallable ret = reflector.getCallable(memberType,c,memberName);
+				resultMessage = createRetString(ret,marshaller,IBaseMarshaller.MARSHALL_ID,0);
 			    }
 			else if(isMessage(":tref",message))
 			    //(:tref "packageQualifiedTypeName")
@@ -73,7 +85,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    {
 			    for(int i=1;i<message.size();i++)
 			        {
-			        int id = Integer.parseInt((String)message.get(i));
+			        int id = intArg(message.get(i));
 			        referenceManager.free(id);
 			        }
 				resultMessage = createRetString(null,marshaller,0,0);
@@ -98,7 +110,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
 			    }
 			else if(isMessage(":is-a",message))
-			    //(:is-a ref tref)
+			    //(:is-a ref tref|"packageQualifiedTypeName")
 			    {
 			    Object o = message.get(1);
 			    Class c = typeArg(message.get(2));
@@ -138,6 +150,16 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 		}
 	}
 
+	String stringArg(Object o)
+	    {
+	    return (String)o;
+	    }
+	
+	int intArg(Object o)
+	    {
+	    return ((Number)o).intValue();
+	    }
+	
 	Class typeArg(Object arg) throws Exception
 	    {
 	    if(arg instanceof Class)
@@ -166,11 +188,12 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 
 	public static void main(String[] args)
         {
-	    ReferenceManager referenceManager = new ReferenceManager();
+	    IReferenceManager referenceManager = new ReferenceManager();
 	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
 	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
-	    MessageReader reader = new MessageReader(referenceManager);
-	    RuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager);
+	    IReader reader = new MessageReader(referenceManager);
+	    IReflector reflector = new Reflector();
+	    IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
 	    try{
 	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),
 	            new BufferedWriter(new OutputStreamWriter(System.out)));
