@@ -20,13 +20,13 @@ import java.util.*;
 public class ReferenceManager implements IReferenceManager
     {
     Hashtable idToObj;
-    Hashtable objToId;
+    IdentityHashMap objToId;
     int nextId = 1;
     
     public ReferenceManager()
         {
         idToObj = new Hashtable();
-        objToId = new Hashtable();
+        objToId = new IdentityHashMap();
         }
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReferenceManager#getIdForObject(java.lang.Object)
