@@ -101,7 +101,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    //(:is-a ref tref)
 			    {
 			    Object o = message.get(1);
-			    Class c = (Class)message.get(2);
+			    Class c = typeArg(message.get(2));
 				resultMessage = createRetString(c.isInstance(o)?Boolean.TRUE:Boolean.FALSE,marshaller,0,0);
 			    }
 			else if(isMessage(":hash",message))
@@ -138,6 +138,18 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 		}
 	}
 
+	Class typeArg(Object arg) throws Exception
+	    {
+	    if(arg instanceof Class)
+	        return (Class)arg;
+	    else if (arg instanceof String)
+	        {
+	        return Class.forName((String)arg);
+	        }
+	    else
+	        throw new Exception("expecting type arg, either reference or packageQualifiedName string");
+	    }
+	
 	boolean isMessage(String type,List message)
 	    {
 	    return type.equalsIgnoreCase((String)message.get(0));

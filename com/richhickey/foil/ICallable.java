@@ -19,6 +19,20 @@ import java.util.List;
  * Window - Preferences - Java - Code Style - Code Templates
  */
 public interface ICallable {
-		Object invoke(List args) throws InvocationTargetException;
+    
+    public final static int CTOR = 1;
+    public final static int METHOD = 2;
+    public final static int FIELD_GET = 3;
+    public final static int FIELD_SET = 4;
+    public final static int PROPERTY_GET = 5;
+    public final static int PROPERTY_SET = 6;
+    public final static int STATIC_METHOD = 7;
+    public final static int STATIC_FIELD_GET = 8;
+    public final static int STATIC_FIELD_SET = 9;
+    public final static int STATIC_PROPERTY_GET = 11;
+    public final static int STATIC_PROPERTY_SET = 12;
+
+    
+	Object invoke(List args) throws InvocationTargetException;
 
 }

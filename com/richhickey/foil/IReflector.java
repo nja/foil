@@ -19,5 +19,5 @@ package com.richhickey.foil;
  */
 public interface IReflector
     {
-    
+    ICallable getCallable(int memberType, Class c, String memberName) throws Exception;
     }
