@@ -60,7 +60,8 @@
 
 #|
 (use-package :foil)
-(setf *fvm* (make-instance 'foreign-vm :lisp-driven-stream (sys:open-pipe "java -cp c:/dev/foil com.richhickey.foil.RuntimeServer")))
+(setf *fvm* (make-instance 'foreign-vm :lisp-driven-stream (sys:open-pipe "java -Xmx128m -cp c:/dev/foil com.richhickey.foil.RuntimeServer")))
+
 |#
 
 (defconstant +marshall-none+ 0)
@@ -97,7 +98,15 @@
   (:default-initargs :vm *fvm* :type nil :hash nil :val nil))
 
 (defun make-fref (&key id type hash val)
-  (make-instance 'fref :id id :type type :hash hash :val val))
+  (let ((ret (make-instance 'fref :id id :type type :hash hash :val val)))
+    (hcl:flag-special-free-action ret)
+    ret))
+
+(defun free-fref (obj)
+  (when (typep obj 'fref)
+    (push obj (fvm-free-list (fref-vm obj)))))
+
+(hcl:add-special-free-action 'foil::free-fref)
 
 (defmethod print-object ((fref fref) stream)
   (format stream "#}~A" (fref-id fref)))
@@ -106,15 +115,25 @@
   ((lisp-driven-stream :initarg :lisp-driven-stream :reader fvm-lisp-driven-stream)
    (vm-driven-stream :reader fvm-vm-driven-stream)
    (fref-table :initform (make-hash-table :weak-kind :value) :reader fvm-fref-table)
-   (symbol-table :initform (make-hash-table) :reader fvm-symbol-table)))
+   (symbol-table :initform (make-hash-table) :reader fvm-symbol-table)
+   (free-list :initform nil :accessor fvm-free-list)))
 
 (defun send-message (&rest args)
-  (let ((send-stream (if *in-async-callback*
+  (let* ((send-stream (if *in-async-callback*
                   (fvm-vm-driven-stream *fvm*)
-                (fvm-lisp-driven-stream *fvm*))))
+                (fvm-lisp-driven-stream *fvm*)))
+         (free-list (fvm-free-list *fvm*)))
+    (when free-list
+      (setf (fvm-free-list *fvm*) nil)
+      (free-frefs send-stream free-list))
     (format send-stream "~S" args)
     (force-output send-stream)
     (process-return-message)))
+
+(defun free-frefs (strm frefs)
+  (format strm "~S" (cons :free (mapcar #'fref-id frefs)))
+  (force-output strm)
+  (process-return-message))
 
 (defun process-return-message ()
   (let* ((*readtable* *foil-readtable*)
@@ -142,12 +161,14 @@
 (defun register-fref (&key id type hash val)
   (if id
       (let ((fref (get-or-init (gethash id (fvm-fref-table *fvm*))
-                             (make-fref :id id))))
+                               (make-fref :id id))))
         (when type
           (setf (fref-type fref) type)
           (ensure-typed-ref fref))
-        (when hash (setf (fref-hash fref) hash))
-        (when val (setf (fref-val fref) val))
+        (when hash
+          (setf (fref-hash fref) hash))
+        (when val
+          (setf (fref-val fref) val))
         fref)
     val))
 
