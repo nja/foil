@@ -24,8 +24,8 @@ import java.io.Writer;
 public interface IBaseMarshaller
     {
     static final int MARSHALL_ID = 1;
-    static final int MARSHALL_TYPE = 1;
-    static final int MARSHALL_HASH = 1;
+    static final int MARSHALL_TYPE = 2;
+    static final int MARSHALL_HASH = 4;
 
 	void marshallAtom(Object o,Writer w, int flags,int depth) throws IOException;
 	boolean canMarshallAsList(Object o);

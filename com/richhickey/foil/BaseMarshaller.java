@@ -55,7 +55,7 @@ public class BaseMarshaller implements IBaseMarshaller
                 {
                 Map.Entry e = (Map.Entry)i.next();
                 Class trybase = (Class)e.getKey();
-                if(c.isAssignableFrom(trybase)
+                if(trybase.isAssignableFrom(c)
                         && isMoreSpecific(trybase,bestbase))
                     {
                     bestbase = trybase;
@@ -109,7 +109,7 @@ public class BaseMarshaller implements IBaseMarshaller
             }
         else //write a reference
             {
-            w.write("#{");
+            w.write("#{:ref");
             
             if((flags & MARSHALL_ID) != 0)
                 {
@@ -136,7 +136,7 @@ public class BaseMarshaller implements IBaseMarshaller
                 IMarshaller m = findMarshallerFor(c);
                 if(m != null)
                     {
-	                w.write(" :val ");
+	                w.write(" :val");
 	                m.marshall(o,w,this,flags,depth - 1);
                     }
                 }

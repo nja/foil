@@ -69,7 +69,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
 			    }
 			}
-		catch(Exception ex)
+		catch(Throwable ex)
 			{
 		    String message;
 		    String trace;
@@ -78,18 +78,13 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			else if(ex instanceof InvocationTargetException)
 		        {
 			    InvocationTargetException ite = (InvocationTargetException)ex;
-			    message = ite.getTargetException().getMessage();
-			    trace = ite.getTargetException().getStackTrace().toString();
+			    ex = ite.getTargetException();
 		        }
-			else
-			    {
-			    message = ex.getMessage();
-			    trace = ex.getStackTrace().toString();
-			    }
-			outs.write("(:err ");
-			outs.write(message);
-			outs.write(' ');
-			outs.write(trace);
+
+		    outs.write("(:err \"");
+			outs.write(ex.toString());
+			outs.write("\" ");
+			marshaller.marshallAsList(ex.getStackTrace(),outs,0,1);
 			outs.write(')');
 			outs.flush();
 			}
@@ -118,5 +113,18 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 
 	public static void main(String[] args)
         {
+	    ReferenceManager referenceManager = new ReferenceManager();
+	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
+	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
+	    MessageReader reader = new MessageReader();
+	    RuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager);
+	    try{
+	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),
+	            new BufferedWriter(new OutputStreamWriter(System.out)));
+	    	}
+        catch(Exception ex)
+	    	{
+	        System.out.println(ex.getMessage());
+	    	}
         }
     }

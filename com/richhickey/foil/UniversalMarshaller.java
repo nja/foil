@@ -1,5 +1,5 @@
 /*
- * Created on Dec 7, 2004
+ * Created on Dec 10, 2004
  *
  *   Copyright (c) Rich Hickey. All rights reserved.
  *   The use and distribution terms for this software are covered by the
@@ -20,7 +20,19 @@ import java.io.Writer;
  * TODO To change the template for this generated type comment go to
  * Window - Preferences - Java - Code Style - Code Templates
  */
-public interface IMarshaller {
-	void marshall(Object o,Writer w, IBaseMarshaller baseMarshaller, int flags,int depth) throws IOException;
+public class UniversalMarshaller implements IMarshaller
+    {
 
-}
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IMarshaller#marshall(java.lang.Object, java.io.Writer, com.richhickey.foil.IBaseMarshaller, int, int)
+     */
+    public void marshall(Object o, Writer w, IBaseMarshaller baseMarshaller,
+            int flags, int depth)  throws IOException
+        {
+        if(baseMarshaller.canMarshallAsList(o))
+            baseMarshaller.marshallAsVector(o,w,flags,depth);
+        else	//todo, use beaninfo to dump properties as alist
+            baseMarshaller.marshallAtom(o.toString(),w,flags,depth);
+        }
+
+    }
