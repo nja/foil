@@ -74,6 +74,17 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    ICallable ret = reflector.getCallable(memberType,c,memberName);
 				resultMessage = createRetString(ret,marshaller,IBaseMarshaller.MARSHALL_ID,0);
 			    }
+			else if(isMessage(":new",message))
+				//(:new tref marshall-flags marshall-value-depth-limit (args ...) property-inits ...)
+			    {
+			    Class c = typeArg(message.get(1));
+				int marshallFlags = intArg(message.get(2));
+				int marshallDepth = intArg(message.get(3));
+				List args = (List)message.get(4);
+			    Object ret = reflector.createNew(c,args);
+			    //TODO set props
+				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
 			else if(isMessage(":tref",message))
 			    //(:tref "packageQualifiedTypeName")
 			    {

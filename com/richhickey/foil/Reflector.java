@@ -117,7 +117,8 @@ public class Reflector implements IReflector
     static boolean isCongruent(Class[] params,List args)
         {
         boolean ret = false;
-        if(params.length == args.size())
+        if((params.length == 0 && args == null)
+                || params.length == args.size())
             {
             ret = true;
             for(int i=0;ret && i<params.length;i++)
@@ -231,5 +232,30 @@ public class Reflector implements IReflector
         if(methods.size() == 0)
             throw new Exception("no properties found");
         return new CallableMethod(methods);
+        }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#createNew(java.lang.Class, java.util.List)
+     */
+    public Object createNew(Class c, List args) throws Exception
+        {
+        Constructor[] ctors = c.getConstructors();
+        for(int i=0;i<ctors.length;i++)
+            {
+            Constructor ctor = ctors[i];
+            Class[] params = ctor.getParameterTypes();
+            if(isCongruent(params,args))
+                {
+                Object[] boxedArgs = boxArgs(params,args);
+                try{
+                    return ctor.newInstance(boxedArgs);
+                	}
+                catch(Exception ex)
+                	{	
+                	throw new InvocationTargetException(ex);
+                	}
+                }
+            }
+        throw new InvocationTargetException(new Exception("no matching ctor found"));
         }
     }

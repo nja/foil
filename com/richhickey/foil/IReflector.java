@@ -10,7 +10,7 @@
  *   You must not remove this notice, or any other, from this software.
  */
 package com.richhickey.foil;
-
+import java.util.*;
 /**
  * @author Rich
  *
@@ -26,4 +26,5 @@ public interface IReflector
      * Window - Preferences - Java - Code Style - Code Templates
      */
     ICallable getCallable(int memberType, Class c, String memberName) throws Exception;
+    Object createNew(Class c, List args) throws Exception;
     }
