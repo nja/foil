@@ -21,8 +21,6 @@ import java.util.*;
 /**
  * @author Rich
  *
- * TODO To change the template for this generated type comment go to
- * Window - Preferences - Java - Code Style - Code Templates
  */
 public class MessageReader implements IReader
     {
@@ -114,7 +112,7 @@ public class MessageReader implements IReader
 	
 	Object processMacroList(List args)
 	    {
-	    //todo handle {:box ... and {:array ...
+	    //TODO handle {:box ... and {:array ...
 	    return null;
 	    }
 	
