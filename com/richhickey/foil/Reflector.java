@@ -447,4 +447,88 @@ public class Reflector implements IReflector
 	        }
 	    w.write(')');
 		}
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#createVector(java.lang.Class, int, java.util.List)
+     */
+    public Object createVector(Class c, int length, List inits) throws Exception
+        {
+        Object ret = Array.newInstance(c,length);
+        boolean isNumeric = isNumericType(c);
+        for(int i=0;i<inits.size();i++)
+            {
+            if(isNumeric)
+                Array.set(ret,i,numericConvert(c,inits.get(i)));
+            else
+                Array.set(ret,i,inits.get(i));
+            }
+        return ret;
+        }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#vectorGet(java.lang.Object, int)
+     */
+    public Object vectorGet(Object v, int index) throws Exception
+        {
+        return Array.get(v,index);
+        }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#vectorSet(java.lang.Object, int, java.lang.Object)
+     */
+    public void vectorSet(Object v, int index, Object val) throws Exception
+        {
+        Array.set(v,index,val);
+        }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#vectorLength(java.lang.Object)
+     */
+    public Object vectorLength(Object v) throws Exception
+        {
+        return new Integer(Array.getLength(v));
+        }
+
+    static boolean isNumericType(Class c)
+        {
+        return
+        c == int.class
+||        c == double.class
+||        c == long.class
+||        c == float.class
+||        c == short.class
+||        c == byte.class;
+        }
+	static Object numericConvert(Class targetType,Object num)
+	throws Exception
+	    {
+        Number n = (Number)num;
+        if(targetType == int.class)
+            {
+            return new Integer(n.intValue());
+            }
+        else if(targetType == double.class)
+            {
+            return new Double(n.doubleValue());
+            }
+        else if(targetType == long.class)
+            {
+            return new Long(n.longValue());
+            }
+        else if(targetType == float.class)
+            {
+            return new Float(n.floatValue());
+            }
+        else if(targetType == short.class)
+            {
+            return new Short(n.shortValue());
+            }
+        else if(targetType == byte.class)
+            {
+            return new Byte(n.byteValue());
+            }
+        throw new Exception("unsupported numeric box type");
+	    
+	    }
+
 }

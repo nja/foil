@@ -112,6 +112,37 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    boolean ret = (o1 == null) ? (o2 == null) : o1.equals(o2);
 				resultMessage = createRetString(ret?Boolean.TRUE:Boolean.FALSE,marshaller,0,0);
 			    }
+			else if(isMessage(":vector",message))
+			    {
+			    //(:vector tref|"packageQualifiedTypeName" length value ...)			    {
+			    Class c = typeArg(message.get(1));
+				int length = intArg(message.get(2));
+				Object ret = reflector.createVector(c,length,
+    					message.subList(3,message.size()));
+				resultMessage = createRetString(ret,marshaller,IBaseMarshaller.MARSHALL_ID,0);
+			    }
+			else if(isMessage(":vget",message))
+			    //(:vget aref marshall-flags marshall-value-depth-limit index)
+			    {
+				int marshallFlags = intArg(message.get(2));
+				int marshallDepth = intArg(message.get(3));
+				int index = intArg(message.get(4));
+				Object ret = reflector.vectorGet(message.get(1),index);
+				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
+			else if(isMessage(":vset",message))
+			    //(:vset aref index value)
+			    {
+				int index = intArg(message.get(2));
+				reflector.vectorSet(message.get(1),index,message.get(3));
+				resultMessage = createRetString(null,marshaller,0,0);
+			    }
+			else if(isMessage(":vlen",message))
+			    //(:vlen aref)
+			    {
+				Object ret = reflector.vectorLength(message.get(1));
+				resultMessage = createRetString(ret,marshaller,0,0);
+			    }
 			else if(isMessage(":type-of",message))
 			    //(:type-of ref)
 			    {
@@ -139,6 +170,10 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				reflector.reflect(c,sw);
 				sw.write(')');
 				resultMessage = sw.toString(); 
+			    }
+			else
+			    {
+			    throw new Exception("unsupported message");
 			    }
 			}
 		catch(Throwable ex)
@@ -179,19 +214,37 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    return ((Number)o).intValue();
 	    }
 	
-	Class typeArg(Object arg) throws Exception
+	static Class typeArg(Object arg) throws Exception
 	    {
 	    if(arg instanceof Class)
 	        return (Class)arg;
 	    else if (arg instanceof String)
 	        {
-	        return Class.forName((String)arg);
+	        String tname = (String)arg;
+	        if(tname.equalsIgnoreCase(":int"))
+	            return int.class;
+	        else if(tname.equalsIgnoreCase(":double"))
+	            return double.class;
+	        else if(tname.equalsIgnoreCase(":long"))
+	            return long.class;
+	        else if(tname.equalsIgnoreCase(":float"))
+	            return float.class;
+	        else if(tname.equalsIgnoreCase(":char"))
+	            return char.class;
+	        else if(tname.equalsIgnoreCase(":boolean"))
+	            return boolean.class;
+	        else if(tname.equalsIgnoreCase(":short"))
+	            return short.class;
+	        else if(tname.equalsIgnoreCase(":byte"))
+	            return byte.class;
+	        else
+	            return Class.forName(tname);
 	        }
 	    else
 	        throw new Exception("expecting type arg, either reference or packageQualifiedName string");
 	    }
 	
-	boolean isMessage(String type,List message)
+	static boolean isMessage(String type,List message)
 	    {
 	    return type.equalsIgnoreCase((String)message.get(0));
 	    }
@@ -210,8 +263,8 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    IReferenceManager referenceManager = new ReferenceManager();
 	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
 	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
-	    IReader reader = new MessageReader(referenceManager);
 	    IReflector reflector = new Reflector(baseMarshaller);
+	    IReader reader = new MessageReader(referenceManager,reflector);
 	    IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
 	    try{
 	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),

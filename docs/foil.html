@@ -44,10 +44,10 @@ Sendable messages:
 	<li>(:str</li>
 	<li>(:tref</li>
 	<li>(:reflect</li>
-	<li>(:array</li>
-	<li>(:aget</li>
-	<li>(:aset</li>
-	<li>(:alen</li>
+	<li>(:vector</li>
+	<li>(:vget</li>
+	<li>(:vset</li>
+	<li>(:vlen</li>
 
 </ul>
 <p>Returnable messages:
@@ -139,10 +139,11 @@ Sendable messages:
 				<p><code>#{:box typename value}</code><br>
 
                 <p>Where typename is one of :byte :int :long :short :float :double
+				<p>N.B. truncation may occur
 				<p>Return values should never be boxed??<br>
 
-			<p><h4>Array Literals</h4>
-				<code>#{:array "packageQualifiedTypeName" value ...}</code><br>
+			<p><h4>vector Literals</h4>
+				<code>#{:vector "packageQualifiedTypeName" value ...}</code><br>
 
 			<p><h4>References</h4>
 
@@ -205,7 +206,7 @@ Sendable messages:
 
 				</ul><p>
 			In addition to marshalling returns during calls, the value of an object reference can be explicitly marshalled:
-			<p><code>(:marshall depth ref)</code> -> Lisp-readable-value
+			<p><code>(:marshall ref depth)</code> -> Lisp-readable-value
 
 		<p>Hash values<br>
 			<code>(:hash ref)</code> -> int<br>
@@ -251,19 +252,19 @@ Sendable messages:
                       (:get (:args ((:name string)(:type tref)) ...) (:ret tref))
                       (:set (:args ((:name string)(:type tref)) ...) (:ret tref))) ...)))</pre></code>
 
-<h3>Arrays</h3>
-	Creating an array:<br>
+<h3>Vectors</h3>
+	Creating an vector:<br>
 	<ul>
 
-	<li>(:array tref|"packageQualifiedTypeName" length value ...)
-		Creates an array of the specified type with the specified length. Initial values are optional 
-		and may be fewer than the length.
+	<li>(:vector tref|"packageQualifiedTypeName" length value ...)
+		Creates an vector of the specified type with the specified length
+		Initial values are optional and may be fewer than the length.
 		-> aref</li>
-	<li>(:aget aref marshall-flags marshall-value-depth-limit index)
+	<li>(:vget aref marshall-flags marshall-value-depth-limit index)
 		-> value</li>
-	<li>(:aset aref index value)
+	<li>(:vset aref index value)
 		-> nil</li>
-	<li>(:alen aref)
+	<li>(:vlen aref)
 		-> int</li>
 	</ul>
 

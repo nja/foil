@@ -15,7 +15,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.reflect.Array;
 import java.util.List;
 import java.util.*;
 
@@ -26,10 +25,11 @@ import java.util.*;
 public class MessageReader implements IReader
     {
     IReferenceManager referenceManager;
-    
-    MessageReader(IReferenceManager referenceManager)
+    IReflector reflector;
+    MessageReader(IReferenceManager referenceManager,IReflector reflector)
     	{
         this.referenceManager = referenceManager;
+        this.reflector = reflector;
     	}
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReader#readMessage(java.io.Reader)
@@ -114,50 +114,18 @@ public class MessageReader implements IReader
 	Object processMacroList(List args)
 		throws Exception
 	    {
-	    //TODO handle {:box ... and {:array ...
 	    if(RuntimeServer.isMessage(":box",args))
 	        {
-	        return numericConvert(args.get(1),args.get(2));
+	        return Reflector.numericConvert(RuntimeServer.typeArg(args.get(1)),args.get(2));
 	        }
-	    else if(RuntimeServer.isMessage(":array",args))
+	    else if(RuntimeServer.isMessage(":vector",args))
 	        {
-	        
+	        return reflector.createVector(RuntimeServer.typeArg(args.get(1)),args.size()-2,
+	                					args.subList(2,args.size()));
 	        }
        throw new Exception("unsupported macro sequence");
 	    }
 	
-	static Object numericConvert(Object targetType,Object num)
-	throws Exception
-	    {
-        Number n = (Number)num;
-        String target = (String)targetType;
-        if(target.equalsIgnoreCase(":int"))
-            {
-            return new Integer(n.intValue());
-            }
-        else if(target.equalsIgnoreCase(":double"))
-            {
-            return new Double(n.doubleValue());
-            }
-        else if(target.equalsIgnoreCase(":long"))
-            {
-            return new Long(n.longValue());
-            }
-        else if(target.equalsIgnoreCase(":float"))
-            {
-            return new Float(n.floatValue());
-            }
-        else if(target.equalsIgnoreCase(":short"))
-            {
-            return new Short(n.shortValue());
-            }
-        else if(target.equalsIgnoreCase(":byte"))
-            {
-            return new Byte(n.byteValue());
-            }
-        throw new Exception("unsupported numeric box type");
-	    
-	    }
 	
     static protected String readString(Reader strm)
             throws IOException
@@ -254,8 +222,11 @@ public class MessageReader implements IReader
     public static void main(String[] args)
         {
         IReferenceManager referenceManager = new ReferenceManager();
+	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
+	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
+        IReflector reflector = new Reflector(baseMarshaller);
         BufferedReader strm = new BufferedReader(new InputStreamReader(System.in));
-        IReader rdr = new MessageReader(referenceManager);
+        IReader rdr = new MessageReader(referenceManager,reflector);
         for(;;)
             {
             try{
