@@ -104,12 +104,13 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
 			    }
 			else if(isMessage(":free",message))
-			    //(:free refid ...)
+			    //(:free refid refrev ... ...)
 			    {
 			    for(int i=1;i<message.size();i++)
 			        {
-			        int id = intArg(message.get(i));
-			        referenceManager.free(id);
+			        Object id = message.get(i++);
+			        int rev = intArg(message.get(i));
+			        referenceManager.free(id,rev);
 			        }
 				resultMessage = createRetString(null,marshaller,0,0);
 			    }

@@ -118,13 +118,14 @@
 (defclass fref ()
   ((vm :reader fref-vm :initarg :vm )
   (id :reader fref-id :initarg :id)
+  (rev :accessor fref-rev :initarg :rev)
   (type :accessor fref-type :initarg :type)
   (hash :accessor fref-hash :initarg :hash)
   (val :accessor fref-val :initarg :val))
   (:default-initargs :vm *fvm* :type nil :hash nil :val nil))
 
-(defun make-fref (&key id type hash val)
-  (let ((ret (make-instance 'fref :id id :type type :hash hash :val val)))
+(defun make-fref (id rev &key type hash val)
+  (let ((ret (make-instance 'fref :id id :rev rev :type type :hash hash :val val)))
     (hcl:flag-special-free-action ret)
     ret))
 
@@ -160,7 +161,10 @@
     (process-return-message)))
 
 (defun free-frefs (strm frefs)
-  (format strm "(:free ~{ ~S~})" (mapcar #'fref-id frefs))
+  (format strm "(:free")
+  (dolist (fref frefs)
+    (format strm " ~S ~S" (fref-id fref) (fref-rev fref)))
+  (format strm ")")
   (force-output strm)
   (process-return-message))
 
@@ -177,8 +181,9 @@
        (force-output ret-stream)
        (process-return-message)))))
 
-(defmethod handle-braces-macro ((cmd (eql :ref)) &rest args)
-  (apply #'register-fref args))
+(defun handle-braces-macro (cmd &rest args)
+  (ecase cmd
+    (:ref (apply #'register-fref args))))
 
 ;probably insufficiently general, works as used here
 (defmacro get-or-init (place init-form)
@@ -188,10 +193,11 @@
 (defun lookup-fref (id)
   (gethash id (fvm-fref-table *fvm*)))
 
-(defun register-fref (&key id type hash val)
+(defun register-fref (id rev &key type hash val)
   (if id
       (let ((fref (get-or-init (gethash id (fvm-fref-table *fvm*))
-                               (make-fref :id id))))
+                               (make-fref id rev))))
+        (setf (fref-rev fref) rev)
         (when type
           (setf (fref-type fref) type)
           (ensure-typed-ref fref))

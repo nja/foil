@@ -147,15 +147,13 @@ public class BaseMarshaller implements IBaseMarshaller
         else //write a reference type
             if((flags & MARSHALL_ID) != 0) //as a reference
             {
-            w.write("#{:ref");
+            w.write("#{:ref ");
+            ObjectID oid = referenceManager.getIdForObject(o);
+            ++oid.rev;
+            w.write(Integer.toString(oid.id));
+            w.write(' ');
+            w.write(Integer.toString(oid.rev));
             
-            if((flags & MARSHALL_ID) != 0)
-                {
-                w.write(" :id ");
-                int id = referenceManager.getIdForObject(o);
-                w.write(Integer.toString(id));
-                }
-
             if((flags & MARSHALL_HASH) != 0)
                 {
                 w.write(" :hash ");

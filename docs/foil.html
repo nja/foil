@@ -363,11 +363,11 @@ Sendable messages:
 
 				Reference types are returned with the following tagged syntax:<br>
 
-				<code>#{:ref :id an-int :type a-ref :hash an-int :val marshalled-value}</code>
+				<code>#{:ref id rev :type a-ref :hash an-int :val marshalled-value}</code>
 				<ul>
 
 
-				<li>:ref must be first, and at least one of :id or :val must be supplied, all others are optional</li>
+				<li>:ref, id, and rev must be supplied, all others are optional</li>
 
 				<li>:id A unique integer reference that identifies the object. The object will be kept alive on the hosting side 
 					until it is freed. Multiple references to the same object will always have the same id. 

@@ -29,21 +29,21 @@ public class ReferenceManager implements IReferenceManager
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReferenceManager#getIdForObject(java.lang.Object)
      */
-    public int getIdForObject(Object o)
+    public ObjectID getIdForObject(Object o)
         {
-        Object id = objToId.get(o);
-        if(id == null)
+        ObjectID oid = (ObjectID)objToId.get(o);
+        if(oid == null)
             {
-            id = new Integer(nextId++);
-            idToObj.put(id,o);
-            objToId.put(o,id);
+            oid = new ObjectID(nextId++);
+            idToObj.put(new Integer(oid.id),o);
+            objToId.put(o,oid);
             }
-        return ((Integer)id).intValue();
+        return oid;
         }
 
-	public Object getObjectForId(int id) throws Exception
+	public Object getObjectForId(Object id) throws Exception
 	    {
-	    Object o = idToObj.get(new Integer(id));
+	    Object o = idToObj.get(id);
 	    if(o == null)
 	        throw new Exception("Invalid reference id");
 	    return o;
@@ -52,11 +52,15 @@ public class ReferenceManager implements IReferenceManager
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReferenceManager#free(int)
      */
-    public void free(int id) throws Exception
+    public void free(Object id,int rev) throws Exception
         {
         Object o = getObjectForId(id);
-        objToId.remove(o);
-        idToObj.remove(new Integer(id));
+        ObjectID oid = getIdForObject(o);
+        if(oid.rev == rev)
+        	{
+        	objToId.remove(o);
+        	idToObj.remove(id);
+        	}
         }
 
     }

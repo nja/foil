@@ -16,8 +16,8 @@ package com.richhickey.foil;
  *
  */
 public interface IReferenceManager {
-	int getIdForObject(Object o);
-	Object getObjectForId(int id) throws Exception;
-	void free(int id) throws Exception;
+	ObjectID getIdForObject(Object o);
+	Object getObjectForId(Object id) throws Exception;
+	void free(Object id,int rev) throws Exception;
 
 }

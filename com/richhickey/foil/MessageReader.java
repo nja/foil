@@ -99,7 +99,7 @@ public class MessageReader implements IReader
             }
         else if(c == '}')	// }id
             {
-            int id = ((Integer)readToken(strm)).intValue();
+            Object id = readToken(strm);
             return referenceManager.getObjectForId(id);
             }
         else if(c == '\\')
