@@ -30,7 +30,7 @@ that implements the consumer side of the protocol, and offers seamless
 access to the foreign objects in a Lisp-like manner.  
 
 The design of Foil owes much to <a href="http://jfli.sourceforge.net/">jfli</a>, an in-process solution to the same 
-problem for Java, and it remains extremely similar in the Lisp interface.  
+problem for Java, and it remains extremely similar in its Lisp interface.  
 Several factors motivated the significant difference in the Foil design -
 its use of an out-of-process instance of the foreign runtime: 
 
@@ -41,6 +41,7 @@ its use of an out-of-process instance of the foreign runtime:
     for instance servlet containers, as done in <a href="http://lisplets.sourceforge.net/">Lisplets</a>, and felt
     I could accomplish similar things with less effort with Foil + marshallers</li>
 <li>I wanted to access the CLR/CLI in a similar fashion to Java</li>
+<li>It allows for more flexibility in dealing with threading issues</li>
 </ul>
 
 The major tradeoff in stream-based access to out-of-proc runtimes is a 
@@ -51,7 +52,7 @@ certain scenarios, since the APIs of these platforms tend to be very
 transfer of large and composite objects with minimal call overhead, in a 
 manner that doesn't pollute the Lisp code on the consumer side.  
 
-<h4>Foil provides all the facilities of jfli and more. </h4>
+<h4>Foil provides all the facilities of jfli and more - </h4>
 
 <h5>Some of the additions are:</h5>
 
@@ -69,7 +70,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 	<li>vector argument boxing, so lightweight vectors-as-arguments can be created in-place 
 		without the overhead of multiple calls to create and initialize the vector</li>
 	<li>keyword-style init of properties in constructor calls is supported by the ctor functions, and can be leveraged 
-		in apply and mapping scenarios (this feature was previously limited to the <code>new</code> macro)</li>
+		in apply and mapping scenarios (this feature was limited in jfli to the <code>new</code> macro)</li>
 </ul>
 
 
@@ -122,13 +123,42 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 	<a href="http://sourceforge.net/projects/foil/">Foil is hosted on SourceForge</a> 
     <a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=125543&amp;type=1"
 				width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
-    We are going to try using SourceForge facilities for all communication regarding Foil, 
+    </p>
+    <p>We are going to try using SourceForge facilities for all communication regarding Foil, 
     so please use the project tracker and forums there.
 	</p>
 
 
-	<a name="api"></a> <h2>API Reference</h2>
-		<a name="wrappergen"></a> <h3>Wrapper Generation</h3>
+	<a name="api"></a> <h2>Lisp API Reference</h2>
+
+    <a name="fvms"></a> <h3>Foreign VMs</h3>
+    <p>
+    Foil is built upon the notion of interactions with one or more foreign VMs, 
+    instances of the JVM or CLR, running the Foil libraries, in another process on 
+    the same or another machine. The connection to a specific VM is via one or more 
+    bidirectional streams. Note that the instantiation of the foreign VM and the 
+    establishment of the streams is outside the scope of this Lisp API. It is 
+    presumed you might try one of the supplied runtime servers, creating stream 
+    connections via sockets or pipes with the API provided by your Lisp 
+    implementation. Many scenarios are possible, including embedding the Foil 
+    support libraries into your existing Java or C# application, multiple streams to different threads in the same VM, etc.
+    </p>
+    <p>
+    A foreign VM is represented by an instance of the <code>foreign-vm</code> class. Each instance has a primary default stream 
+    over which communication will occur. The special variable <code>*fvm*</code> represents the default VM to which any unqualified
+    Foil calls will be directed.
+    </p>
+	<ul>
+    </ul>
+
+        		
+    <a name="fvms"></a> <h3>Foreign References</h3>
+
+
+	<ul>
+    </ul>
+
+                <a name="wrappergen"></a> <h3>Wrapper Generation</h3>
 
 	<ul>
 		<li>
@@ -219,7 +249,8 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 				<li>
 					A Lisp class with the class-symbol as its name. It will have as its superclasses 
 					other Lisp classes corresponding to the Java/CLI superclass/superinterfaces, some of 
-					which may be forward-referenced-classes.  An instance of this class will be 
+					which may be forward-referenced-classes, and will be ultimately derived from <code>fref</code>.  
+                    An instance of this class will be 
 					returned by <code>ensure-typed-ref</code>, at which point the entire hierarchy will 
 					consist of finalized standard-classes.
 				</li>
@@ -270,18 +301,49 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 		</li>
 </ul>
 
-		<a name="objectservices"></a> <h3>Object Services</h3>
-
-	    <ul>
-				<li>
-            			<strong>Function</strong> <code>(equals fref1 fref2) 
-			-> boolean</code>
-			<p>
-			Portable Object.equals
+    <a name="objectservices"></a> <h3>Object Services</h3> These functions provide 
+    access to basic facilities provided by all runtimes (usually through syntax or 
+    the Object class), but should be used instead, as they are portable and can be 
+    more efficient, caching and resolving some things locally on the Lisp side.
+    <ul>
+        <li>
+            <strong>Function</strong> <code>(equals fref1 fref2) -> boolean</code>
+            <p>
+            Portable Object.equals/Equals
             </p>
-				</li>
+        </li>
+        <li>
+            <strong>Function</strong> <code>(instance-of fref type) -> boolean</code>
+            <p>
+            Portable instanceof/is
+            </p>
+        </li>
 
-        </ul>
+        <li>
+            <strong>Function</strong> <code>(to-string fref) -> string</code>
+            <p>
+            Portable Object.toString/ToString
+            </p>
+        </li>
+
+        <li>
+            <strong>Function</strong> <code>(hash fref &key rehash) -> int</code>
+            <p>
+            Portable Object.hasCode/GetHashCode. Note: will cache the value on the fref. If 
+            already cached, will return that, unless :rehash is t.
+            </p>
+        </li>
+
+        <li>
+            <strong>Function</strong> <code>(get-type fref) -> Class or Type fref</code>
+            <p>
+            Portable Object.getClass/GetType. Note: will cache the value on the fref. Note also that obtaining the exact type of
+            the object is completely independent of the coercion of the fref to its corresponding Lisp type 
+            (see <code>ensure-typed-ref</code>)
+            </p>
+        </li>
+
+    </ul>
 
 <h2>Protocol</h2>
 
@@ -291,7 +353,9 @@ library which provides the interface to the protocol for Common Lisp.  A user
         of Foil will not need to know the protocol, but if you intend to add support
         for another runtime environment (Python anyone?) or host language (Scheme anyone?),
         hopefully this section will help. Note that the protocol docs are not formal, and
-        mostly consists of notes to myself. This will be improved when I get time.
+        mostly consists of notes to myself and Eric. This will be improved when I get time. For the moment,
+        should there be any omissions or inaccuracies here, the Lisp and Java implementations should be 
+         considered canonic.
 
 <h3>Connection Services</h3> 
 
