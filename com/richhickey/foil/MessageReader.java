@@ -117,7 +117,8 @@ public class MessageReader implements IReader
             int c = strm.read();
             if (c == -1)
                 throw new IOException("unexpected EOF");
-            if (c == ')' || c == '(' || Character.isWhitespace((char) c))
+            if (c == ')' || c == '(' || Character.isWhitespace((char) c)
+                    || c == '}')
                 {
                 strm.reset();
                 end = true;
