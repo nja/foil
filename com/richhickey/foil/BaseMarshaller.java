@@ -37,7 +37,7 @@ public class BaseMarshaller implements IBaseMarshaller
         marshallerMap.put(target,marshaller);
         }
     
-    IMarshaller findMarshallerFor(Class c)
+    public IMarshaller findMarshallerFor(Class c)
         {
         //already seen this type?
         if(marshallerCache.containsKey(c))

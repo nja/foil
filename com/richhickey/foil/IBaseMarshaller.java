@@ -30,4 +30,6 @@ public interface IBaseMarshaller
 	boolean canMarshallAsList(Object o);
 	void marshallAsList(Object o,Writer w, int flags,int depth) throws IOException;
 	void marshallAsVector(Object o,Writer w, int flags,int depth) throws IOException;
+    IMarshaller findMarshallerFor(Class c);
+
     }

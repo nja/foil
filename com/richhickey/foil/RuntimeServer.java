@@ -189,9 +189,15 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    //(:marshall ref marshall-flags marshall-value-depth-limit)
 			    {
 			    Object ret = message.get(1);
+			    IMarshaller m = marshaller.findMarshallerFor(ret.getClass());
 				int marshallFlags = intArg(message.get(2));
 				int marshallDepth = intArg(message.get(3));
-				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				StringWriter sw = new StringWriter();
+				sw.write("(:ret");
+				m.marshall(ret,sw,marshaller,marshallFlags,marshallDepth);
+				//resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				sw.write(')');
+				resultMessage = sw.toString(); 
 			    }
 			else
 			    {
