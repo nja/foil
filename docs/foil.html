@@ -42,6 +42,9 @@
 					<a href="#wrappergen">Wrapper Generation</a>
 				</li>
 				<li>
+					<a href="#objects">Object Creation</a>
+				</li>
+				<li>
 					<a href="#objectservices">Object Services</a>
 				</li>
 				<li>
@@ -484,6 +487,37 @@ CLASS.      </pre>
 		</li>
 </ul>
 
+	<a name="objects"></a> <h3>Object Creation</h3>
+	<ul>
+		<li>
+			<strong><a name="makenew"></a>Generic Function</strong> <code>(make-new classname. &rest args) -> fref</code>
+			<p>
+			Allows for definition of before/after methods on constructors. Calls <code>classname.new</code> ctor. 
+			The new macro expands into a call to this.
+			</p>
+		</li>
+		<li>
+			<strong>Macro</strong> <code>(new class-spec args &body body) -> fref</code>
+			<p>
+            <code>class-spec -> class-sym | (class-sym this-name)
+<br>class-sym -> classname.
+<br>args -> as per ctors and make-new</code></p
+			<p>Creates a new instance of class, using the <code>make-new</code> generic function,
+then runs the body replacing all top-level calls of the form
+<code>(.anything whatever)</code>
+with
+<code>(classname.anything new-object whatever)</code>
+If <code>this-name</code> is supplied it will be bound to the newly-allocated object and available
+to the body (note - but not to the args!)
+			</p> Example:
+<pre>
+(new shell. (*display* :text "SWT Apropos" :layout (gridlayout.new 1 t ))
+                  (.setsize 800 600)
+                  (.setlocation 100 100))            </pre>
+		</li>
+    </ul>
+
+
     <a name="objectservices"></a> <h3>Object Services</h3> 
     These functions provide 
     access to basic facilities provided by all runtimes (usually through syntax or 
@@ -536,8 +570,76 @@ CLASS.      </pre>
     </ul>
 
         <a name="vectors"></a> <h3>Vectors</h3> 
+        <ul>
+
+        <li>
+            <strong>Function</strong> <code>(make-new-vector type length &rest inits) -> array fref</code>
+            <p>
+            Creates a foreign vector of specified type and length. There can be fewer inits than the length, in which case 
+            the remaining values take the default.
+            </p>
+        </li>
+        <li>
+            <strong>Function</strong> <code>(vref vector index) -> value</code>
+            <p>
+            Returns the value at the index. Settable.
+            </p>
+        </li>
+        <li>
+            <strong>Function</strong> <code>(vlength vector index) -> int</code>
+            <p>
+            Returns the length of the vector.
+            </p>
+        </li>
+        </ul>
 
         <a name="proxies"></a> <h3>Proxies and Callbacks</h3> 
+        Proxies allow the creation of foreign objects that implement one or more interfaces (or a single delegate, in the case of CLI) 
+		in Lisp, and thus callbacks from the foreign VM to Lisp.
+<ul>
+        <li>
+            <strong>Generic Function</strong> <code>(handle-proxy-call method-symbol proxy &rest args))</code>
+            <p>
+            The proxy infrastructure routes all callbacks to this generic function. If a proxy p implements an interface i, and the foreign
+            VM ends up invoking i.foo on p, it will map to a call to <code>handle-proxy-call</code> with the first 2 arguments
+            of 'i.foo and p, followed by the actual arguments to the invocation. So, callback handlers can be defined by specializing 
+            methods on the method-symbol, the proxy object, or both. The unspecialized method spews out "unhandled proxy call" to 
+            standard output and returns nil to the foreign VM. Any unhandled errors that occur on the Lisp side during a callback turn into 
+            exceptions on the runtime server.
+            </p>
+        </li>
+
+        <li>
+            <strong>Function</strong> <code>(make-new-proxy arg-marshall-flags arg-marshall-depth &rest interface-types) -> proxy fref</code>
+            <p>
+            Creates and returns a proxy object that implements the given interface or delegate types. <code>arg-marshall-flags</code> and
+            <code>arg-marshall-depth</code> will be used to marshall the arguments to the callback. No handlers are defined by this function.
+            </p>
+        </li>
+
+            <li>
+            <strong>Macro</strong> <code>(new-proxy proxy arg-marshall-flags arg-marshall-depth &rest interface-defs) -> proxy fref</code>
+            <p>
+            Creates and returns a proxy object that implements the given interface or delegate types. 
+                <code>
+                <br>proxy -> a symbol
+<br>interface-def -> (interface-name method-defs+)
+<br>interface-name -> classname. (must name an interface or delegate type)
+<br>method-def -> (method-name (args*) body)
+<br>method-name -> symbol (without classname)</code>
+                <br>The symbol <code>proxy</code>
+will be bound to the proxy instance in the body of the method implementations.
+            </p>Example:
+<pre>
+(new-proxy p +MARSHALL-ID+ 0
+           (keylistener.
+             (keyreleased (event)
+               (when (eql *SWT.CR* (keyevent.character event))
+                 (gob)))))                </pre>
+        </li>
+
+    </ul>
+            
 
         <a name="marshalling"></a> <h3>Marshalling</h3> 
         <p>
