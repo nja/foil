@@ -155,6 +155,5 @@
       (mp:process-run-function
        "winform-proc" '()
        (lambda ()
-         (|System.Windows.Forms|::Application.Run form)))
-      )))
-
+         (|System.Windows.Forms|::Application.Run form))))))
+      
