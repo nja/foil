@@ -15,7 +15,8 @@ using System;
 using System.IO;
 using System.Collections;
 using System.Reflection;
-
+using System.Net;
+using System.Net.Sockets;
 /**
  * @author Eric Thorsen
  *
@@ -35,9 +36,9 @@ namespace com.richhickey.foil
     IReflector			reflector;
 
 	[ThreadStatic]
-	Object		proxyWriter;
+	Object		proxyWriter	=null;
 	[ThreadStatic]
-	Object		proxyReader;
+	Object		proxyReader	=null;
 
     public RuntimeServer(	IReader reader
 							, IBaseMarshaller marshaller
@@ -376,5 +377,37 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		sw.Write(')');
 		return sw.ToString();
 	    }
+	}
+	/// <summary>
+	/// Class to support muliple channels for the single server.
+	/// </summary>
+	public class RuntimeSocketServer 
+	{
+		RuntimeServer	rs;
+		Int32			port;
+
+		public	RuntimeSocketServer(RuntimeServer	rs,Int32 port)
+		{
+			this.rs		=	rs;
+			this.port	=	port;
+		}
+
+		public void processMessagesOnSocket() 
+		{
+			try 
+			{
+				TcpListener	me		=	new TcpListener(IPAddress.Any,this.port);
+				me.Start();
+				TcpClient	tcp		=	me.AcceptTcpClient();		
+				//s.setTcpNoDelay(true);
+				rs.processMessages(	new StreamReader(tcp.GetStream()),
+					new StreamWriter(tcp.GetStream()));
+			} 
+			catch(Exception exc)
+			{
+				Console.WriteLine("Exception:{0}",exc.Message);
+				Console.WriteLine(exc.StackTrace);
+			}
+		}
 	}
 }

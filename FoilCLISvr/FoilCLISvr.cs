@@ -10,8 +10,10 @@
  *   You must not remove this notice, or any other, from this software.
  */
 using System;
+using System.Reflection;
 using System.IO;
 using System.Collections;
+using System.Threading;
 using com.richhickey.foil;
 
 namespace com.richhickey.foil
@@ -34,10 +36,29 @@ namespace com.richhickey.foil
 				baseMarshaller.registerMarshaller(Type.GetType("System.Object"), new UniversalMarshaller());
 				IReflector	reflector				=	new Reflector(baseMarshaller);
 				IReader reader						= new MessageReader(referenceManager,reflector);
-				IRuntimeServer server				= new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
-				try {
-			        server.processMessages(Console.In,Console.Out);
-	    		}
+				RuntimeServer server				= new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
+				try 
+				{
+					if(args.Length >= 1) //port #s, run on sockets
+					{	
+						//fire up a background thread for all sockets except first
+						for(int i=1;i<args.Length;i++)
+						{
+							RuntimeServer	rs		= server;
+							Int32			port	= Int32.Parse(args[i]);
+							RuntimeSocketServer	rts	= new RuntimeSocketServer(rs,port);
+							//Do I need to reference these?
+							(new Thread(new ThreadStart(rts.processMessagesOnSocket))).Start();
+						}
+						//app lives with first socket
+						RuntimeSocketServer	mainRts	= new RuntimeSocketServer(server,Int32.Parse(args[0]));
+						mainRts.processMessagesOnSocket();
+					}
+					else //run on stdio
+					{
+						server.processMessages(Console.In,Console.Out);
+					}
+				}
 				catch(Exception ex)
 				{
 					Console.WriteLine(ex.Message);

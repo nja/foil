@@ -516,11 +516,13 @@ static fields also get a symbol-macro *classname.fieldname*"
 
 (defun call-prop-get (class-sym name method-sym this args)
   (with-vm-of this
+;    (format t "prop-get ~A meth ~A~%" name method-sym)
     (let ((cref (find-prop-get class-sym name method-sym)))
       (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
 
 (defun call-prop-set (class-sym name method-sym this args)
   (with-vm-of this
+;    (format t "prop-set ~A meth ~A~%" name method-sym)
     (let ((cref (find-prop-set class-sym name method-sym)))
       (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
 
@@ -531,7 +533,7 @@ static fields also get a symbol-macro *classname.fieldname*"
       (push prop (gethash (find-tag-atom :name prop) props-by-name)))
     (maphash
      (lambda (name props)
-       (let ((method-sym (member-symbol full-class-name name))
+       (let ((method-sym (member-symbol full-class-name (if (equals "Item" name) "iref" name)))
              (getter-sym (when (some (lambda (prop) (find-tag-atom :get-doc prop)) props)
                            (member-symbol full-class-name (string-append name "-get"))))
              (setter-sym (when (some (lambda (prop) (find-tag-atom :set-doc prop)) props)
@@ -557,10 +559,10 @@ static fields also get a symbol-macro *classname.fieldname*"
                    `(defun (setf ,method-sym) (val &rest args)
                       ,set-doc
                       (call-prop-set ',class-sym ,name ',setter-sym nil (append args (list val))))
-                 `(defun (setf ,method-sym) (val this &rest args)
-                    ,set-doc
-                    (call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
-               defs))
+                     `(defun (setf ,method-sym) (val this &rest args)
+                        ,set-doc
+                        (call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
+                   defs))
          (push `(export ',method-sym ,package)
                defs)))
      props-by-name)

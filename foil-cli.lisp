@@ -44,10 +44,9 @@
 
 
 (defun gen-wrappers ()
-  (dump-wrapper-defs-to-file "/foil/cli-system.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/mscorlib.dll" "System/"))
+  (dump-wrapper-defs-to-file "/foil/cli-system-collections.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/mscorlib.dll" "System.Collections"))
 ;  (dump-wrapper-defs-to-file "/foil/cli-system-windows-forms.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/System.Windows.Forms.dll" "System/Windows/Forms/"))
-
-  (compile-file "/foil/cli-system.lisp")
+  (compile-file "/foil/cli-system-collections.lisp")
 )
  
-;(gen-wrappers)
+;(gen-wrappers) 
