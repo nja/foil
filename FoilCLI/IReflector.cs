@@ -34,6 +34,7 @@ namespace com.richhickey.foil
 		void		indexerSet(Object v,ArrayList indexesAndVal);
 		Object		vectorLength(Object v);
 		void		setProps(Object o, ArrayList nameValuePairs);
+		ArrayList	getClassNames(Object assembly,ArrayList assemblyNames);
 		Object		makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,ArrayList interfaces);
  	}
 }

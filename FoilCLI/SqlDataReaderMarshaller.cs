@@ -12,7 +12,8 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Data.SqlClient;
+using System.Data;
+using System.Text;
 /**
  * @author Eric Thorsen
  *
@@ -21,36 +22,48 @@ using System.Data.SqlClient;
 namespace com.richhickey.foil	
 {
 	/// <summary>
-	/// Writes a SqlDataReader to an alist. The Columns key is paired with a simple vector of column names
-	/// that are in the ordinal matching the list of data vectors that follow.
-	/// The Data key yields a list of simple vectors that contains the data.
-	/// (	(COLUMNS . #(NAME DATETIME VALUE VALUETYPE DESCRIPTION CONFIGCATEGORYID)) 
-	///		(DATA . #("First row of data" NIL "C:EASTempLogs" "System.String" "Audit trail prefix" 3)
-	///				#("2nd row of data" NIL "C:EASTempLogs" "System.String" "Audit trail prefix" 3))))
+	/// Writes a SqlDataReader to an s-expr with the following format:
+	/// The results are a list of result sets.  Each result set has a 
+	/// the Columns names positioned to the ordinal of the data they represent
+	/// within each row represented as a vector.
+	/// (list	'((NAME DATETIME VALUE VALUETYPE DESCRIPTION CONFIGCATEGORYID) 
+	///				(#("First row of data" NIL "C:EASTempLogs" "System.String" "Audit trail prefix" 3)
+	///				 #("2nd row of data" NIL "C:EASTempLogs" "System.String" "Audit trail prefix" 3))))
 	/// </summary>
 	public class SqlDataReaderMarshaller:IMarshaller
 	{
 		public void marshall(Object o, TextWriter w, IBaseMarshaller baseMarshaller,int flags, int depth)  
 		{
-			if(o.GetType()!=typeof(SqlDataReader))
+			if(o is IDataReader)
 				throw new ArgumentOutOfRangeException(
-							String.Format("Expected DataReader in DataReaderMarshaller but got {0}",o.GetType().ToString()));
-			SqlDataReader	dr	=	(SqlDataReader)o;
-			// First write out the fields as an alist
-			w.Write("((columns . #(");
-			for(int i=0;i<dr.FieldCount;++i)
-				w.Write("{0} ",dr.GetName(i));
-			w.Write(")) ");
-			// Write out the data as a list of vectors
-			w.Write("(data . (");
-			while(dr.Read())
+							String.Format(	"Expected IDataReader in DataReaderMarshaller but got {0}"
+											,o.GetType().ToString()));
+			// Start the list of data sets
+			w.Write("(:result ");
+			// We have to close it when we are done.
+			using(IDataReader	dr	=	(IDataReader)o)
 			{
-				w.Write("#(");
-				for(int i=0;i<dr.FieldCount;++i)
-					baseMarshaller.marshallAtom(dr.GetValue(i),w,flags,depth);
-				w.Write(" ) ");
+				do
+				{
+					// First write out the fields
+					w.Write("(:result-set (:columns #(");
+					for(int i=0;i<dr.FieldCount;++i)
+						w.Write("((:name {0})(:type {1}))",dr.GetName(i),dr.GetDataTypeName(i));
+					w.Write(")) ");
+					// Write out the data as a list of vectors
+					w.Write("(:rows ");
+					// Each row...
+					while(dr.Read())	
+					{
+						w.Write("#(");
+						for(int i=0;i<dr.FieldCount;++i)
+							baseMarshaller.marshallAtom(dr.GetValue(i),w,flags,depth);
+						w.Write(") ");
+					}
+					w.Write("))");
+				} while(dr.NextResult());
 			}
-			w.Write(")))");
+			w.Write(")");
 		}
 	}
 }

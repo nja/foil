@@ -561,14 +561,52 @@ namespace  com.richhickey.foil
             supers[p]	=	((Type)supers[p]).ToString();
 		return	supers;
 	 }
-	static ProxyHandler handler;
+
 	public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, ArrayList interfaceList) 
 		{
 		Type[] interfaces = new Type[interfaceList.Count];
 		for(int i=0;i<interfaces.Length;i++)
 			interfaces[i] = RuntimeServer.typeArg(interfaceList[i]);
-		handler	=	new ProxyHandler(runtime,marshallFlags,marshallDepth);
+		ProxyHandler handler	=	new ProxyHandler(runtime,marshallFlags,marshallDepth);
         return Proxy.BuildProxy(new Proxy.InvocationDelegate(handler.invoke),interfaces);
+		}
+
+		public	ArrayList	getClassNames(Object assembly,ArrayList assemblyNames)
+		{
+			Assembly	asm	=	Assembly.LoadFrom(assembly.ToString());
+			Type[]	types	=	asm.GetTypes();
+			//Covert the '/' to '.'
+			SortedList	packages	=	new SortedList();
+			foreach(String	pname	in assemblyNames)
+			{
+				String s = pname.Replace('/','.');
+				packages.Add(s,s);
+			}
+			ArrayList	typeNames	=	new ArrayList();
+			foreach(Type t in types)
+			{
+				if(anyMatch(packages,t.ToString()))
+					typeNames.Add(t.ToString());
+			}
+			return	typeNames;
+		}
+
+		static	bool	anyMatch(SortedList packages,String fullTypeName)
+		{
+			foreach(String package in packages.Keys)
+				if(includeType(package,fullTypeName))
+					return	true;
+			return	false;
+		}
+
+		static	bool	includeType(String package,String fullTypeName)
+		{
+			return	fullTypeName.StartsWith(package)
+				&& (package[package.Length-1] != '.' ||
+					fullTypeName.IndexOf('.',package.Length)==-1)
+				&&	(fullTypeName.IndexOfAny(new char[] {'$','+'})==-1
+					&& fullTypeName.IndexOf("__")==-1
+					&& fullTypeName.IndexOf("PrivateImplementationDetails")==-1);
 		}
 	}
 }

@@ -266,6 +266,16 @@ public Object processMessages(TextReader ins,TextWriter outs)
 					//will turn into an exception below
 					errorMesssage = (String)message[1];
 				}
+				else if(isMessage(":cnames",message))
+				{
+					StringWriter sw = new StringWriter();
+					sw.Write("(:ret");
+					marshaller.marshallAsList(
+							reflector.getClassNames(message[1],message.GetRange(2,message.Count-2))
+							,sw,IBaseMarshallerFlags.MARSHALL_ID,1);
+					sw.Write(')');
+					resultMessage = sw.ToString(); 
+				}
 				else
 				{
 					throw new Exception("unsupported message");
