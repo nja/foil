@@ -1,4 +1,4 @@
-(load "/dev/foil/foil")
+;(load "/dev/foil/foil")
 (use-package :foil)
 (def-foil-class "java.util.jar.JarFile")
 (def-foil-class "java.util.Enumeration")
@@ -40,20 +40,29 @@
     names))
 
 
+;this is just an example of some wrapper gen invocations, do similar stuff for your system
 (defun gen-wrappers ()
 ;/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Classes/classes.jar
-#+nil(dump-wrapper-defs-to-file "~/foil/swt.lisp" (get-jar-classnames "/Users/rich/downloads/eclipse/plugins/org.eclipse.swt.carbon_3.0.0/ws/carbon/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
+  #+nil(dump-wrapper-defs-to-file "~/foil/swt.lisp" (get-jar-classnames "/Users/rich/downloads/eclipse/plugins/org.eclipse.swt.carbon_3.0.0/ws/carbon/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
 
   (dump-wrapper-defs-to-file "/foil/java-lang.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/"))
   (dump-wrapper-defs-to-file "/foil/java-util.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/util/"))
   (dump-wrapper-defs-to-file "/foil/java-io.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/io/"))
   (dump-wrapper-defs-to-file "/foil/java-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/sql/"))
   (dump-wrapper-defs-to-file "/foil/javax-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "javax/sql/"))
-  (dump-wrapper-defs-to-file "/foil/swt.lisp" (get-jar-classnames "/dev/eclipse/plugins/org.eclipse.swt.win32_3.0.0/ws/win32/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
+  (dump-wrapper-defs-to-file "/foil/swt.lisp" (get-jar-classnames "/dev/eclipse/plugins/org.eclipse.swt.win32_3.0.1/ws/win32/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
+
+  (dump-wrapper-defs-to-file "/foil/java-lang.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/"))
+
+  (dump-wrapper-defs-to-file "/foil/commons-httpclient.lisp" (get-jar-classnames "/dev/commons-httpclient-2.0.2/commons-httpclient-2.0.2.jar" "org/apache/commons/httpclient"))
+
+
 
   (compile-file "/foil/java-lang")
   (compile-file "/foil/java-util")
   (compile-file "/foil/java-io")
   (compile-file "/foil/java-sql")
   (compile-file "/foil/javax-sql")
+  (compile-file "/foil/javax-servlet")
+  (compile-file "/foil/commons-httpclient")
   (compile-file "/foil/swt"))
