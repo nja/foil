@@ -237,41 +237,21 @@ Sendable messages:
 
 	<code>
 <pre>
-(:ret ((:class tref)
-       (:bases tref ...) ;most-derived to least-derived
-       (:ctors ((:args tref ...)
-                (:ret tref ...)) ...)
-       (:methods (	(:mref mref)
-					(:name string)
-					(:sigs ((:args tref ...)
-                          (:ret tref ...)) ...)) ...)
-	(:fields (	(:name string)
-                (:type tref)) ...)
-	(:properties ((:name string)
-                      (:getsigs ((:args tref ...)
-                                 (:ret tref ...)) ...)
-                      (:setsigs ((:args tref ...)) ...)))
-	(:static-methods ((:name string)
-                          (:sigs ((:args tref ...)
-                                  (:ret tref ...)) ...)) ...)
-	(:static-fields ((:name string)
-                         (:type tref)) ...)
-	(:static-properties ((:name string)
-                             (:getsigs ((:args tref ...)
-                                        (:ret tref ...)) ...)
-                             (:setsigs ((:args tref ...)) ...)))))
-
-->(:ret ((:class tref)
-	(:bases tref ...) ;most-derived to least-derived
-	(:ctors ((:args tref ...)(:ret tref ...)) ...)
-	(:methods ((:name string) (:sigs ((:args tref ...)(:ret tref ...)) ...)) ...)
-	(:fields ((:name string) (:type tref)) ...)
-	(:properties ((:name string) (:getsigs ((:args tref ...)(:ret tref ...)) ...)
-								(:setsigs ((:args tref ...)) ...)))
-	(:static-methods ((:name string) (:sigs ((:args tref ...)(:ret tref ...)) ...)) ...)
-	(:static-fields ((:name string) (:type tref)) ...)
-	(:static-properties ((:name string) (:getsigs ((:args tref ...)(:ret tref ...)) ...)
-							(:setsigs ((:args tref ...)) ...)))))</pre></code>
+(:ret (	(:class tref)
+        (:bases tref ...) ;most-derived to least-derived
+        (:ctors (:args tref ...) ...)
+        (:methods ((:mref mref)
+                   (:name string)
+                   (:is-static bool)
+                   (:args tref ...)
+                   (:ret tref)) ...)
+        (:fields ((:name string)
+                  (:is-static bool)
+                  (:type tref)) ...)
+        (:properties ((:name string)
+                      (:is-static bool)
+                      (:get (:args tref ...) (:ret tref))
+                      (:set (:args tref ...) (:ret tref))) ...)))</pre></code>
 
 <h3>Arrays</h3>
 	Creating an array:<br>

@@ -139,8 +139,8 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				StringWriter sw = new StringWriter();
 				sw.write("(:ret");
 				reflector.reflect(c,sw);
-				resultMessage = sw.toString(); 
 				sw.write(')');
+				resultMessage = sw.toString(); 
 			    }
 			}
 		catch(Throwable ex)

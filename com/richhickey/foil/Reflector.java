@@ -321,6 +321,108 @@ public class Reflector implements IReflector
             w.write(')');
             }
         
+        Method[] methods = c.getMethods();
+        if(methods.length > 0)
+            {
+            w.write("(:methods ");
+            for(int i=0;i<methods.length;i++)
+                {
+                Method method = methods[i];
+                w.write("(:mref ");
+                baseMarshaller.marshallAtom(method,w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+                
+                w.write("(:name ");
+                baseMarshaller.marshallAtom(method.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+
+                w.write("(:is-static ");
+                baseMarshaller.marshallAtom(new Boolean(Modifier.isStatic(method.getModifiers())),
+                        					w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+
+                reflectMethodSignature(method,w);
+                }
+            w.write(')');
+            }
+
+        Field[] fields = c.getFields();
+        if(fields.length > 0)
+            {
+            w.write("(:fields ");
+            for(int i=0;i<fields.length;i++)
+                {
+                Field field = fields[i];
+                
+                w.write("(:name ");
+                baseMarshaller.marshallAtom(field.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+
+                w.write("(:is-static ");
+                baseMarshaller.marshallAtom(new Boolean(Modifier.isStatic(field.getModifiers())),
+                        					w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+
+                w.write("(:type ");
+                baseMarshaller.marshallAtom(field.getType(),w,IBaseMarshaller.MARSHALL_ID,1);
+                w.write(')');
+
+                }
+            w.write(')');
+            }
+        
+        PropertyDescriptor[] props = Introspector.getBeanInfo(c).getPropertyDescriptors();
+        if(props.length > 0)
+            {
+            w.write("(:properties ");
+            for(int i=0;i<props.length;i++)
+                {
+                PropertyDescriptor prop = props[i];
+                
+                w.write("(:name ");
+                baseMarshaller.marshallAtom(prop.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
+
+                //only create this section if static
+                //never true for Java
+//                w.write("(:is-static ");
+//                baseMarshaller.marshallAtom(Boolean.FALSE,
+//                        					w,IBaseMarshaller.MARSHALL_ID,0);
+//                w.write(')');
+
+                Method readm = prop.getReadMethod();
+                if(readm != null)
+                    {
+                    w.write("(:get ");
+                    reflectMethodSignature(readm,w);
+                    w.write(')');
+                    }
+                Method setm = prop.getWriteMethod();
+                if(setm != null)
+                    {
+                    w.write("(:set ");
+                    reflectMethodSignature(setm,w);
+                    w.write(')');
+                    }
+                }
+
+            w.write(')');
+            }
+
+        w.write(')');
+        }
+    
+    void reflectMethodSignature(Method method, Writer w)
+    	throws IOException
+        {
+        Class[] params = method.getParameterTypes();
+        w.write("(:args");
+        for(int p=0;p<params.length;p++)
+            baseMarshaller.marshallAtom(params[p],w,IBaseMarshaller.MARSHALL_ID,1);
+        w.write(')');
+
+        w.write("(:ret ");
+        baseMarshaller.marshallAtom(method.getReturnType(),w,IBaseMarshaller.MARSHALL_ID,1);
         w.write(')');
         }
     }
