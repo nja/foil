@@ -1,7 +1,10 @@
 <html>
 <head>
 	<link rel="stylesheet" type="text/css" media="screen" href="foil.css">
-</head>
+<title>Foil - a Foreign Object Interface for Lisp</title>
+    	<meta name="keywords" content="Rich Hickey, Foil, Lisp, Common Lisp, LispWorks, Java, CLI, CLR, JVM, C#"/>
+	<meta name="author" content="Rich Hickey" />
+    </head>
 <body>
 <h2>Foil - a Foreign Object Interface for Lisp</h2>
 	<h5>Copyright (c) Rich Hickey and Eric Thorsen. All rights reserved.</h5>
@@ -22,12 +25,6 @@
 		</li>
 		<li>
 			<a href="#download">Download</a>
-		</li>
-		<li>
-			<a href="#setup">Setup and Configuration</a>
-		</li>
-		<li>
-			<a href="#quickstart">Quick Start</a>
 		</li>
 		<li>
 			<a href="#api">API Reference</a>
@@ -739,7 +736,7 @@ will be bound to the proxy instance in the body of the method implementations.
     
 
     <p>The format of marshalled values is determined
-    by the runtime servers, and both the Java and CLI servers provided with Foil have facilites for adding new marshallers 
+    by the runtime servers, and both the Java and CLI servers provided with Foil have facilities for adding new marshallers 
     for specific types. The way an object's value is marshalled is a function of its type.</p>
       
       <p>
@@ -820,6 +817,31 @@ CL-USER 90 > (pprint (with-marshalling (1 +MARSHALL-NO-IDS+)
 
 
 <a name="runtimeservers"></a><h2>Runtime Servers</h2>
+
+<p>Foil includes 2 complete implementations of the runtime server portion of the protocol, one for Java/JVM, the other for C#/CLI. The
+implementations are 100% Java/Managed, and use only standard libraries.
+
+Both will run the protocol over one or more TCP sockets specified on the command line, or, if none specified, via standard IO.
+</p>
+
+<p>Project files are included for Eclipse and Visual Studio. All of the Java code is in com/richhickey/foil and the stand-alone server
+is in RuntimeServer.Main. The CLI implementation is in 2 projects, one for the Foil library itself - FoilCLI, and the other for the
+stand-alone server - FoilCLISvr.
+</p><p>
+After building, you can invoke the Java server as follows:
+</p>
+<p>
+<code>java -cp . com.richhickey.foil.RuntimeServer 13579</code>
+</p>
+<p>
+Make sure the classpath includes the libraries and .jars you will want to use via Foil.
+</p>
+
+<p>After building, you can invoke the CLI server as follows:</p>
+
+<code>foilclisvr 13479</code>
+
+
 
 <a name="protocol"></a><h2>Protocol</h2>
 
