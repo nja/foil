@@ -60,6 +60,7 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 	for(;;)
 	{
 	    String resultMessage = null;
+	    String errorMesssage = null;
 		try{
 			String form = slurpForm(ins);
 			List message = reader.readMessage(new StringReader(form));
@@ -223,6 +224,13 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 				resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
 										message.subList(3,message.size())),marshaller,IBaseMarshaller.MARSHALL_ID,0);
 				}
+			else if(isMessage(":err",message))
+				//only on callback, note will break out of message loop
+				{
+				//there was an error on the Lisp side during a proxy callback
+				//will turn into an exception below
+				errorMesssage = (String)message.get(1);
+				}
 			else
 			    {
 			    throw new Exception("unsupported message");
@@ -256,6 +264,12 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 		    outs.write(resultMessage);
 			outs.flush();
 		    }
+		else if (errorMesssage != null)
+			{
+			//there was an error on the Lisp side during a proxy callback
+			//throw an exception to the calling code
+			throw new IOException(errorMesssage);
+			}
 		}
 	//return null;
 	}

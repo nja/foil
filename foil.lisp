@@ -79,6 +79,7 @@
 
 
 #|
+please ignore this scratchpad stuff
 (use-package :foil)
 (load "/foil/java-lang")
 (load "/foil/java-io")
@@ -86,11 +87,12 @@
 (load "/foil/java-sql")
 (use-package '("java.lang" "java.io" "java.util" "java.sql"))
 (setf *fvm* (make-instance 'foreign-vm
-             :stream
-             (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
+                           :stream
+                           (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
+(require "comm")
 (setf *fvm* (make-instance 'foreign-vm
-             :stream
-             (comm:open-tcp-stream "localhost" 13579)))
+                           :stream
+                           (comm:open-tcp-stream "localhost" 13579)))
 (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
 |#
 
@@ -183,9 +185,13 @@
          (case (first msg)
            (:ret (setf done t ret (second msg)))
            (:err (error (third msg))) ;just dump stack trace for now
-      ;nested call, hopefully will get TCO
            (:proxy-call
-            (format ret-stream "(:ret ~S)" (apply #'handle-proxy-call (rest msg)))
+            (multiple-value-bind (x cond)
+                (ignore-errors
+                  (format ret-stream "(:ret ~S)" (apply #'handle-proxy-call (rest msg))))
+              (declare (ignore x))
+              (when cond
+                (format ret-stream "(:err ~S)" (format nil "Error during proxy call: ~A~%" cond))))
             (force-output ret-stream)))))))
 #|
 (defun process-return-message ()
