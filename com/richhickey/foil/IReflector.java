@@ -29,4 +29,6 @@ public interface IReflector
     Object vectorGet(Object v,int index) throws Exception;
     void vectorSet(Object v,int index,Object val) throws Exception;
     Object vectorLength(Object v) throws Exception;
+	void setProps(Object o, List nameValuePairs) throws Exception;
+
     }

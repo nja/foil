@@ -531,4 +531,38 @@ public class Reflector implements IReflector
 	    
 	    }
 
+	public void setProps(Object o, List nameValuePairs)
+	throws Exception
+	    {
+	    //presumes name is :-prefixed
+        PropertyDescriptor[] props = Introspector.getBeanInfo(o.getClass()).getPropertyDescriptors();
+	    for(int i=0;i<nameValuePairs.size();i+=2)
+	        {
+	        String name = (String)nameValuePairs.get(i);
+	        setProp(o,props,name.substring(1),nameValuePairs.get(i+1));
+	        }
+	    }
+	
+	void setProp(Object o, PropertyDescriptor[] props, String name, Object value)
+	throws Exception
+	    {
+        for(int i=0;i<props.length;i++)
+            {
+            PropertyDescriptor prop = props[i];
+//          only support keyword-style init of non-indexed props
+            if(!(prop instanceof IndexedPropertyDescriptor) 
+                    && prop.getName().equalsIgnoreCase(name))
+                {
+                Method method = prop.getWriteMethod();
+                if(method != null)
+                    {
+	                Object[] args = new Object[1];
+	                args[0] = boxArg(method.getParameterTypes()[0],value);
+	                method.invoke(o,args);
+	                return;
+                    }
+                }
+            }
+        throw new Exception("can't find property");
+	    }
 }

@@ -80,7 +80,11 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				int marshallDepth = intArg(message.get(3));
 				List args = (List)message.get(4);
 			    Object ret = reflector.createNew(c,args);
-			    //TODO set props
+			    //set props
+			    if(message.size()>5)
+			        {
+			        reflector.setProps(ret,message.subList(5,message.size()));
+			        }
 				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
 			    }
 			else if(isMessage(":tref",message))
@@ -196,10 +200,12 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    ex = ite.getTargetException();
 		        }
 
-		    outs.write("(:err \"");
-			outs.write(ex.toString());
-			outs.write("\" ");
-			marshaller.marshallAsList(ex.getStackTrace(),outs,0,1);
+		    outs.write("(:err");
+			marshaller.marshallAtom(ex.toString(),outs,0,0);
+			StringWriter sw = new StringWriter();
+			//marshaller.marshallAsList(ex.getStackTrace(),outs,0,1);
+			ex.printStackTrace(new PrintWriter(sw));
+			marshaller.marshallAtom(sw.toString(),outs,0,0);
 			outs.write(')');
 			outs.flush();
 			}
