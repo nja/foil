@@ -18,10 +18,17 @@ import org.eclipse.swt.widgets.Shell;
 public class SWTHelper {
 	public static void runDispatchLoop(Display display, Shell shell)
 		{
-		shell.open ();
-		while (!shell.isDisposed ()) 
+		try{
+			shell.open ();
+			while (!shell.isDisposed ()) 
+				{
+				if (!display.readAndDispatch ()) display.sleep ();
+				}
+			}
+		finally
 			{
-			if (!display.readAndDispatch ()) display.sleep ();
+			if(!shell.isDisposed ())
+				shell.dispose();
 			}
 		}
 }
