@@ -6,6 +6,8 @@
  */
 package com.richhickey.foil;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.lang.reflect.*;
 import java.util.*;
 import java.beans.*;
@@ -17,7 +19,11 @@ import java.beans.*;
  */
 public class Reflector implements IReflector
     {
-
+    IBaseMarshaller baseMarshaller;
+    public Reflector(IBaseMarshaller baseMarshaller)
+        {
+        this.baseMarshaller = baseMarshaller;
+        }
     /**
      * @author Rich
      *
@@ -257,5 +263,64 @@ public class Reflector implements IReflector
                 }
             }
         throw new InvocationTargetException(new Exception("no matching ctor found"));
+        }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#reflect(java.lang.Class, java.io.Writer)
+     */
+    public void reflect(Class c, Writer w) throws Exception
+        {
+        w.write(" (");
+        
+        w.write("(:class");
+        baseMarshaller.marshallAtom(c,w,IBaseMarshaller.MARSHALL_ID,0);
+        w.write(')');
+
+        ArrayList supers = new ArrayList();
+        if(c.isInterface())
+            supers.add(Object.class);
+        else
+            supers.add(c.getSuperclass());
+        Class[] interfaces = c.getInterfaces();
+        for(int i=0;i<interfaces.length;i++)
+            {
+            Class inter = interfaces[i];
+            boolean placed = false;
+            for(int p=0;!placed && p<supers.size();p++)
+                {
+                Class s = (Class)supers.get(p);
+                if(s.isAssignableFrom(inter))
+                    {
+                    supers.add(p,inter);
+                    placed =true;
+                    }
+                }
+            if(!placed)
+                supers.add(inter);
+                
+            }
+        w.write("(:bases");
+        for(int p=0;p<supers.size();p++)
+            baseMarshaller.marshallAtom(supers.get(p),w,IBaseMarshaller.MARSHALL_ID,1);
+        w.write(')');
+        
+        Constructor[] ctors = c.getConstructors(); 
+        if(ctors.length > 0)
+            {
+            w.write("(:ctors ");
+            for(int i=0;i<ctors.length;i++)
+                {
+                Constructor ctor = ctors[i];
+                Class[] params = ctor.getParameterTypes();
+                w.write("(:args");
+                for(int p=0;p<params.length;p++)
+                    baseMarshaller.marshallAtom(params[p],w,IBaseMarshaller.MARSHALL_ID,1);
+                
+                w.write(')');
+                }
+            w.write(')');
+            }
+        
+        w.write(')');
         }
     }

@@ -11,6 +11,7 @@
  */
 package com.richhickey.foil;
 import java.util.*;
+import java.io.*;
 /**
  * @author Rich
  *
@@ -27,4 +28,5 @@ public interface IReflector
      */
     ICallable getCallable(int memberType, Class c, String memberName) throws Exception;
     Object createNew(Class c, List args) throws Exception;
+    void reflect(Class c,Writer w) throws Exception;
     }

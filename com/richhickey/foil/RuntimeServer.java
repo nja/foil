@@ -132,6 +132,16 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    {
 				resultMessage = createRetString(new Integer(message.get(1).hashCode()),marshaller,0,0);
 			    }
+			else if(isMessage(":reflect",message))
+			    //(:reflect tref|"packageQualifiedTypeName")
+			    {
+			    Class c = typeArg(message.get(1));
+				StringWriter sw = new StringWriter();
+				sw.write("(:ret");
+				reflector.reflect(c,sw);
+				resultMessage = sw.toString(); 
+				sw.write(')');
+			    }
 			}
 		catch(Throwable ex)
 			{
@@ -203,7 +213,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
 	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
 	    IReader reader = new MessageReader(referenceManager);
-	    IReflector reflector = new Reflector();
+	    IReflector reflector = new Reflector(baseMarshaller);
 	    IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
 	    try{
 	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),

@@ -119,6 +119,27 @@ public class BaseMarshaller implements IBaseMarshaller
     		w.write(((String)o).replaceAll("\\\\","\\\\\\\\").replaceAll("\"","\\\\\""));
             w.write('"');
             }
+        else if(o instanceof Class && ((Class)o).isPrimitive())
+            {
+            if(o == int.class)
+                w.write(":int");
+            else if(o == long.class)
+                w.write(":long");
+            else if(o == double.class)
+                w.write(":double");
+            else if(o == float.class)
+                w.write(":float");
+            else if(o == boolean.class)
+                w.write(":boolean");
+            else if(o == char.class)
+                w.write(":char");
+            else if(o == void.class)
+                w.write(":void");
+            else if(o == short.class)
+                w.write(":short");
+            else if(o == byte.class)
+                w.write(":byte");
+            }
         else //write a reference
             {
             w.write("#{:ref");
