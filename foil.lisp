@@ -71,6 +71,9 @@
 (setf *fvm* (make-instance 'foreign-vm
              :lisp-driven-stream
              (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
+(setf *fvm* (make-instance 'foreign-vm
+             :lisp-driven-stream
+             (comm:open-tcp-stream "localhost" 13579)))
 (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
 |#
 
