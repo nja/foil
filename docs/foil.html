@@ -131,6 +131,10 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 
 	<a name="api"></a> <h2>Lisp API Reference</h2>
 
+    Other than 2 wrapper-generator helpers, all of the code for the Lisp side of foil resides in <code>foil.lisp</code>, and is 
+    runtime server independent. Foil is designed to be very portable, and is 99% pure Common Lisp. A complete port requires some 
+    facility for weak hash tables and object finalization.
+
     <a name="fvms"></a> <h3>Foreign VMs</h3>
     <p>
     Foil is built upon the notion of interactions with one or more foreign VMs, 
@@ -138,7 +142,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
     the same or another machine. The connection to a specific VM is via one or more 
     bidirectional streams. Note that the instantiation of the foreign VM and the 
     establishment of the streams is outside the scope of this Lisp API. It is 
-    presumed you might try one of the supplied runtime servers, creating stream 
+    presumed you might utilize one of the supplied runtime servers, creating stream 
     connections via sockets or pipes with the API provided by your Lisp 
     implementation. Many scenarios are possible, including embedding the Foil 
     support libraries into your existing Java or C# application, multiple streams to different threads in the same VM, etc.
@@ -146,16 +150,143 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
     <p>
     A foreign VM is represented by an instance of the <code>foreign-vm</code> class. Each instance has a primary default stream 
     over which communication will occur. The special variable <code>*fvm*</code> represents the default VM to which any unqualified
-    Foil calls will be directed.
-    </p>
+    Foil calls will be directed, and can be bound in a specific context, thus allowing for multiple VMs. 
+    Note - instance property/method calls will always be routed to the VM hosting that instance.
+   </p>
+   <p>
+   Foreign VMs maintain their own foreign reference pools, type caches etc, and objects from one VM cannot be passed to another, 
+   even if they are both Java or CLI. However, in multi-thread, multi-stream scenarios references are valid across threads in the same VM,
+   and the runtime server implementations are thread safe.
+   </p>
+   <p>
+   A simple startup scenario would look like this:
+   </p>
+   <p> - First, outside of Lisp, start the Java or CLI Foil runtime server supplied with Foil, running on port 13579, then:
+
+   <pre>
+   (load "/dev/foil/foil")
+   (use-package :foil)
+   (require "comm") ;LispWorks-specific socket library
+   (setf *fvm* (make-instance 'foreign-vm
+                           :stream
+                           (comm:open-tcp-stream "localhost" 13579)))
+    ;use Foil  </pre>
+   </p>
 	<ul>
-    </ul>
+        <li>
+			<strong>Special Variable</strong> <code>*fvm*</code>
+			<p>
+		    This must be bound to an instance of <code>foreign-vm</code>. Default: nil
+            <br> Direct use of this other than during initial setup is not recommended, use instead <code>with-vm</code> or
+            <code>with-vm-of</code>
+			</p>
+            </li>
+        <li>
+			<strong>Special Variable</strong> <code>*thread-fvm*</code>
+			<p>
+		    If set, this thread is waiting on a callback from this VM. Default: nil 
+            <br>This is only used for advanced multi-thread scenarios
+			</p>
+            </li>
+        <li>
+			<strong>Special Variable</strong> <code>*thread-fvm-stream*</code>
+			<p>
+		    If this thread is waiting on a callback (i.e. <code>*thread-fvm*</code> is bound), and <code>(eql *fvm* *thread-fvm*)</code>, 
+            use this stream instead of the primary default stream for the VM. Default: nil
+            <br>This is only used for advanced multi-thread scenarios
+
+			</p>
+            </li>
+        <li>
+			<strong>Class</strong> <code>foreign-vm</code>
+			<p>
+		    Manages a foreign VM. Requires the initarg <code>:stream</code> be set to a bidirectional stream with an instance of the 
+            Foil runtime services on the other end.
+			</p>
+            </li>
+        <li>
+			<strong>Macro</strong> <code>(with-vm vm &body body)</code>
+			<p>
+		    Causes the body to be evaluated in a context where <code>*fvm*</code> is bound to <code>vm</code>
+			</p>
+            </li>
+
+        <li>
+			<strong>Macro</strong> <code>(with-vm-of this &body body)</code>
+			<p>
+		    Causes the body to be evaluated in a context where <code>*fvm*</code> is bound to the source VM of <code>this</code>
+			</p>
+            </li>
+           
+                </ul>
 
         		
     <a name="fvms"></a> <h3>Foreign References</h3>
-
+    Foil programs invariably create instances of objects in the foreign VM. Those objects are tracked by Lisp in instances 
+    of the <code>fref</code> class. The Foil API and the runtime server cooperate to ensure that objects referenced by Lisp are kept alive
+    in the foreign runtime, and that when no longer referenced by Lisp, they become available for collection in the foreign VM. 
+    <code>frefs</code> maintain their source VM, an ID and revision counter for this purpose. In addition, <code>frefs</code> can 
+    cache hash codes, types, and values that have been marshalled. Only a single <code>fref</code> will be created for each remote object,
+    thus any 2 <code>frefs</code> that reference the same object are themselves <code>eq</code>.
 
 	<ul>
+        <li>
+			<strong>Class</strong> <code>fref</code>
+			<p>
+		    Reference to a foreign object. <code>fref</code> is the superclass of all of the Foil classes generated to mirror the
+            foreign hierarchy.
+            </p>
+            </li>
+        <li>
+ 			<strong>Method</strong> <code>(fref-vm fref)</code> ->The foreign-vm from which this reference originated
+            </li>
+        <li>
+ 			<strong>Method</strong> <code>(fref-id fref)</code> ->An integer ID, unique within a VM
+            </li>
+
+        <li>
+ 			<strong>Method</strong> <code>(fref-type fref)</code> ->A Class or Type fref
+            <p>
+            This will only be set if the type has been marshalled or <code>get-type</code> has been called on this fref.
+            </p>
+            </li>
+        <li>
+ 			<strong>Method</strong> <code>(fref-hash fref)</code> ->int
+            <p>
+            This will only be set if the hash code has been marshalled or <code>hash</code> has been called on this fref.
+            </p>
+            </li>
+
+        <li>
+ 			<strong>Method</strong> <code>(fref-val fref)</code> -> A Lisp object representing the value of the object
+            <p>
+            This will only be set if the value has been marshalled.
+            </p>
+            </li>
+
+                    <li>
+ 			<strong>Function</strong> <code>(ensure-typed-reference fref)</code> -> <code>fref</code>, whose class may have been changed
+            <p>
+            			Given a generic Foil fref, determines the full type of the object and 
+			uses <code>change-class</code> to convert the fref to that type. Since we don't want to always incur the cost of 
+                        type determination, the wrapper-generated API functions return generic references. Use this function to convert to 
+			a typed reference corresponding to the full actual type of the object when desired:
+<pre>
+CL-USER 42 > (setf string-class (get-type-for-name "java.lang.String"))
+#}1
+
+CL-USER 43 > (type-of string-class)
+FREF
+
+CL-USER 44 > (ensure-typed-ref string-class)
+#}1
+
+CL-USER 45 > (type-of string-class)
+CLASS.      </pre>
+            </p>
+            </li>
+
+
     </ul>
 
                 <a name="wrappergen"></a> <h3>Wrapper Generation</h3>
@@ -269,7 +400,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 			<p>
 			Returns a list of class name strings. Packages should be strings of the form "java/lang 
 			 " for recursive lookup and "java/util/" (note trailing slash) for non-recursive. This function
-                    is in foil-java.lisp and is only for Java.
+                    is in <code>foil-java.lisp</code> and is only for Java.
 			</p>
 				</li>
 				<li>
@@ -278,7 +409,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 			<p>
 			Returns a list of class name strings.  Assemblies should be of the form "System/IO"
   for recursive lookup and "System/IO/" for non-recursive (note trailing slash). This function
-                    is in foil-cli.lisp and is only for the CLI.
+                    is in <code>foil-cli.lisp</code> and is only for the CLI.
 			</p>
 				</li>
 		<li>
@@ -630,5 +761,16 @@ on the hosting side.  It is an error to refer to these refids again.<br>
 		-> int</li>
 	</ul>
 
+	<a name="summary"></a> <h2>Summary</h2>
+ <p>
+ I'd like to thank my good friend Eric Thorsen for his hard work on the CLI/C# port.
+ </p>
+<p>
+I hope you find Foil useful. It is my sincere intent that it enhance the utility and interoperability of Common Lisp. 
+I welcome comments and code contributions.
+</p>
+<p>
+Rich Hickey, February, 2005
+</p>
 </body>
 </html>
