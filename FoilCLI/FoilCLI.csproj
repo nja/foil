@@ -139,6 +139,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Proxy.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "ProxyHandler.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "ReferenceManager.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -150,6 +160,11 @@
                 />
                 <File
                     RelPath = "RuntimeServer.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "TypeBuilder.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

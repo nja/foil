@@ -95,6 +95,14 @@ namespace  com.richhickey.foil
 			}
 		}
 
+		static	public	Type[]	getParameterTypes(ParameterInfo[] parameters)
+		{
+			Type[]	types	=	new Type[parameters.Length];
+			for(Int32 i=0;i<parameters.Length;++i)
+				types[i]	=	parameters[i].ParameterType;
+			return	types;
+		}
+
 		static Object[] boxArgs(ParameterInfo[] parameters,ArrayList args)
 		{
 			if(parameters.Length == 0)
@@ -551,14 +559,14 @@ namespace  com.richhickey.foil
             supers[p]	=	((Type)supers[p]).ToString();
 		return	supers;
 	 }
+		static ProxyHandler handler;
 		public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, ArrayList interfaceList) 
 		{
 		Type[] interfaces = new Type[interfaceList.Count];
 		for(int i=0;i<interfaces.Length;i++)
 			interfaces[i] = RuntimeServer.typeArg(interfaceList[i]);
-		//return Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),interfaces,
-		//new ProxyHandler(runtime,marshallFlags,marshallDepth));
-			return	null;
+		handler	=	new ProxyHandler(runtime,marshallFlags,marshallDepth);
+        return Proxy.BuildProxy(new Proxy.InvocationHandler(handler.invoke),interfaces);
 		}
 	}
 }

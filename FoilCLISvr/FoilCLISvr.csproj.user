@@ -11,7 +11,7 @@
                     RemoteDebugEnabled = "false"
                     RemoteDebugMachine = ""
                     StartAction = "Project"
-                    StartArguments = "13245"
+                    StartArguments = "13478 13479"
                     StartPage = ""
                     StartProgram = ""
                     StartURL = ""

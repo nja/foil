@@ -18,14 +18,8 @@ using com.richhickey.foil;
 
 namespace com.richhickey.foil
 {
-	/// <summary>
-	/// Summary description for Class1.
-	/// </summary>
 	class FoilCLISvr
 	{
-		/// <summary>
-		/// The main entry point for the application.
-		/// </summary>
 		[STAThread]
 		static void Main(string[] args)
 		{

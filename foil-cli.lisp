@@ -28,7 +28,7 @@
          (names ()))
     (doenum (e types)
       (let ((ename (|System|::Type.tostring e)))
-          (format t "~A~%" ename)
+          ;(format t "~A~%" ename)
         (flet ((matches (package)
                  (and (eql 0 (search package ename))
                       (or (not (eql #\. (schar package (1- (length package))))) ;recursive
@@ -45,19 +45,11 @@
 
 (defun gen-wrappers ()
   (dump-wrapper-defs-to-file "/foil/cli-system-collections.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/mscorlib.dll" "System.Collections"))
-;  (dump-wrapper-defs-to-file "/foil/cli-system-windows-forms.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/System.Windows.Forms.dll" "System/Windows/Forms/"))
+  (dump-wrapper-defs-to-file "/foil/cli-system.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/mscorlib.dll" "System/"))
   (compile-file "/foil/cli-system-collections.lisp")
+  (compile-file "/foil/cli-system.lisp")
 )
  
 ;(gen-wrappers) 
 
-(defun test-hash-indexer()
-  (let ((ht (hashtable.new)))
-    (setf (foil::iref ht "Fred") 50
-          (foil::iref ht "Betty") 100
-          (foil::iref ht 100) nil
-          (foil::iref ht 23.4) t
-          (foil::iref ht "More") " and more")
-    (doenum (e (ienumerable.getenumerator (hashtable.keys ht)))
-               (format t "key=~A value=~A~%" e (foil::iref ht e)))))
 

@@ -117,7 +117,7 @@ namespace com.richhickey.foil
 					w.Write("#{:ref ");
 
 					ObjectID oid = referenceManager.getIdForObject(o);
-					++oid.rev;
+					//++oid.rev;
 					w.Write("{0} {1}",oid.id,oid.rev);
             
 					if((flags & IBaseMarshallerFlags.MARSHALL_HASH) != 0)

@@ -239,7 +239,7 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				int marshallFlags = intArg(message[1]);
 				int marshallDepth = intArg(message[2]);
 				resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
-																	message.GetRange(3,message.Count)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+																	message.GetRange(3,message.Count-3)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
 				}
 			else
 			{
@@ -284,11 +284,13 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		//(:proxy-call method-symbol proxy-ref args ...)
 		//method-symbol has the form: |package.name|::classname.methodname
 		
-		String decl = method.DeclaringType.Name;
+		String decl = method.DeclaringType.FullName;
 		StringWriter sw = new StringWriter();
 		int lastDotIdx = decl.LastIndexOf('.'); 
 		sw.Write("(:proxy-call |");
-		sw.Write(decl.Substring(0,lastDotIdx));
+		// Don't want the proxies genned name
+		int firstDotInx	=	decl.IndexOf('.');
+		sw.Write(decl.Substring(firstDotInx+1,lastDotIdx-firstDotInx-1));
 		sw.Write("|::");
 		sw.Write(decl.Substring(lastDotIdx+1));
 		sw.Write('.');

@@ -21,8 +21,8 @@ namespace com.richhickey.foil
 {
 	public class ReferenceManager : IReferenceManager
 	{
-		Hashtable idToObj;
-		Hashtable objToId;
+		Hashtable idToObj; //int->Object
+		Hashtable objToId; //Object->ObjectId
 		int nextId = 1;
     
 		public ReferenceManager()
@@ -33,32 +33,48 @@ namespace com.richhickey.foil
 
 		public ObjectID getIdForObject(Object o)
 		{
-			ObjectID tid	=	(ObjectID)objToId[o];
-			if(tid==null)
+			lock(this)
 			{
-				tid	=	new ObjectID(this.nextId++);
-				idToObj[tid.id]	=	o;
-				objToId[o]		=	tid;
+				ObjectID oid = findIdForObject(o);
+				oid.rev++;
+				return oid;
 			}
-			return (ObjectID)tid;
+		}
+
+		private ObjectID findIdForObject(Object o)
+		{
+			ObjectID oid = (ObjectID)objToId[o];
+			if(oid == null)
+			{
+				oid = new ObjectID(nextId++);
+				idToObj.Add(oid.id,o);
+				objToId.Add(o,oid);
+			}
+			return oid;
 		}
 
 		public Object getObjectForId(Object id) 
 		{
-			Object o = idToObj[id];
-			if(o == null)
-				throw new Exception("Invalid reference id");
-			return o;
+			lock(this)
+			{
+				Object o = idToObj[id];
+				if(o == null)
+					throw new Exception("Invalid reference id");
+				return o;
+			}
 		}
 	
 		public void free(Object id,int rev) 
 		{
-			Object o		= getObjectForId(id);
-			ObjectID oid	= getIdForObject(o);
-			if(oid.rev == rev)
+			lock(this)
 			{
-				objToId.Remove(o);
-				idToObj.Remove(id);
+				Object o		= getObjectForId(id);
+				ObjectID oid	= getIdForObject(o);
+				if(oid.rev == rev)
+				{
+					objToId.Remove(o);
+					idToObj.Remove(id);
+				}
 			}
 		}
 	}
