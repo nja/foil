@@ -94,7 +94,7 @@
   "if this thread is waiting on a callback channel, and (eql *fvm* *thread-fvm*), use this stream")
 
 (defvar *thread-fvm* nil
-  "if, set, this thread is wating on a callback from this vm")
+  "if, set, this thread is waiting on a callback from this vm")
 
 
 #|
@@ -525,7 +525,7 @@ make-new specialized on the class-symbol"
 
 (defmacro with-marshalling ((depth &rest flags) &body body)
   `(let ((*marshalling-depth* ,depth)
-         (*marshalling-flags* (apply #'logior ,flags)))
+         (*marshalling-flags* (logior ,@flags)))
      ,@body))
 
 (defun foil-call-method (class-sym name method-sym this args)
