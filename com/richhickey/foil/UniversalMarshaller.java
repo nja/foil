@@ -28,8 +28,14 @@ public class UniversalMarshaller implements IMarshaller
     public void marshall(Object o, Writer w, IBaseMarshaller baseMarshaller,
             int flags, int depth)  throws IOException
         {
-        if(baseMarshaller.canMarshallAsList(o))
+        if(o.getClass().isArray())
+            {
+            baseMarshaller.marshallAsVector(o,w,flags,depth);
+            }
+        else if(baseMarshaller.canMarshallAsList(o))
+            {
             baseMarshaller.marshallAsList(o,w,flags,depth);
+            }
         else if(o instanceof Class)
             baseMarshaller.marshallAtom(((Class)o).getName(),w,flags,depth);
         else	

@@ -186,6 +186,11 @@ public class BaseMarshaller implements IBaseMarshaller
      * @see com.richhickey.foil.IBaseMarshaller#marshallAsList(java.lang.Object, java.io.Writer, int, int)
      */
     public void marshallAsList(Object o, Writer w, int flags, int depth) throws IOException
+    	{
+        w.write(' ');
+        doMarshallAsList(o,w,flags,depth);
+    	}
+    public void doMarshallAsList(Object o, Writer w, int flags, int depth) throws IOException
         {
         w.write('(');
         Iterator i = null;
@@ -226,8 +231,8 @@ public class BaseMarshaller implements IBaseMarshaller
      */
     public void marshallAsVector(Object o, Writer w, int flags, int depth) throws IOException
         {
-        w.write('#');
-        marshallAsList(o,w,flags,depth);
+        w.write(" #");
+        doMarshallAsList(o,w,flags,depth);
         }
 
 	public boolean canMarshallAsList(Object o)
