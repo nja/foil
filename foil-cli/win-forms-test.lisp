@@ -1,3 +1,6 @@
+;;; Use the gen-cli-wrappers.lisp to generate the cli wrapper files. 
+;;; The load-foil-and-cli-defsys.lisp has a function (load-foilcli-defsys) to compile and load the files. 
+;;; You can also uncomment the block below to load the files.
 #|
 (load "/dev/foil/foil")
 (use-package :foil)
@@ -16,6 +19,7 @@
 (eval-when (:compile-toplevel :load-toplevel)
 (require "comm"))
 
+; Assumes there is a cli server running 2 threads
 (defvar *ui-stream*)
 (defvar *non-ui-stream*)
 (defvar *display*)
@@ -30,10 +34,16 @@
 
 (defvar *my-form* nil)
 
+(defun run-demo ()
+  (progn
+    (init-display)
+    (show-app2)))
+
 (defun init-display ()
   (let ((*thread-fvm* *fvm*)
         (*thread-fvm-stream* *ui-stream*))))
 
+; Helper for UI elements
 (defmacro bld-ui-widget (ctor name loc size tabinx text)
                (destructuring-bind (n (lx ly) (sx sy) tab txt)
                    `(,name ,loc ,size ,tabinx ,text)
@@ -94,7 +104,6 @@
                       (packages (remove-duplicates (mapcar #'symbol-package syms)))
                       (package-nodes (make-hash-table))
                       (treenodes (treeview.nodes symboltreeview)))
-                 (format t "In gob...~%")
                  (treeview.beginupdate symbolTreeView)
                  (treenodecollection.clear treenodes)
                  (dolist (p packages)
@@ -104,8 +113,8 @@
                    (treenodecollection.add (treenode.nodes (gethash (symbol-package sym) package-nodes)) (symbol-name sym)))
                  (treeview.endupdate symbolTreeView)
                  (Panel.ResumeLayout searchPanel nil)
-                 (Form.ResumeLayout form nil)
-                 (format t "leaving gob...~%"))))
+                 (Form.ResumeLayout form nil))))
+      ;wire up the events
              (Button.add_click searchButton
                (new-proxy p1 +MARSHALL-ID+ 0
                           (eventhandler.
@@ -136,6 +145,7 @@
                                                  "")))))
                                    nil))))
              )
+    ;Lanuch the UI thread
     (let ((mp:*process-initial-bindings*
            (append '((*standard-output* . *standard-output*)
                      (*fvm* . *fvm*)
@@ -148,15 +158,3 @@
          (|System.Windows.Forms|::Application.Run form)))
       )))
 
-;(defgeneric handle-event (sender proxy &args))
-
-;(defmethod handle-event ((sender  *searchButton*) proxy &rest args)
-	;(format t "Search button pressed~A"))
-
-;(defmethod handle-proxy-call ((method (eql 'eventhandler.invoke)) proxy &rest args)
-;  (let* ((ev (first args))
-;        (name (cdr (assoc :name (foil::fref-val ev)))))
-;    (if name
-;        (handle-event ev proxy args)
-;      (format t "~S~% ~A not found. foil::fref-val ~A~% " args ev (foil::fref-type ev))
-;      )))
