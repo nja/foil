@@ -149,7 +149,6 @@ public class BaseMarshaller implements IBaseMarshaller
             {
             w.write("#{:ref ");
             ObjectID oid = referenceManager.getIdForObject(o);
-            ++oid.rev;
             w.write(Integer.toString(oid.id));
             w.write(' ');
             w.write(Integer.toString(oid.rev));

@@ -17,8 +17,8 @@ import java.util.*;
  */
 public class ReferenceManager implements IReferenceManager
     {
-    Hashtable idToObj;
-    IdentityHashMap objToId;
+    Hashtable idToObj; //int->Object
+    IdentityHashMap objToId; //Object->ObjectId
     int nextId = 1;
     
     public ReferenceManager()
@@ -30,6 +30,16 @@ public class ReferenceManager implements IReferenceManager
      * @see com.richhickey.foil.IReferenceManager#getIdForObject(java.lang.Object)
      */
     public ObjectID getIdForObject(Object o)
+    	{
+    	synchronized(this)
+			{
+	    	ObjectID oid = findIdForObject(o);
+	    	oid.rev++;
+	    	return oid;
+			}
+    	}
+
+    private ObjectID findIdForObject(Object o)
         {
         ObjectID oid = (ObjectID)objToId.get(o);
         if(oid == null)
@@ -43,24 +53,28 @@ public class ReferenceManager implements IReferenceManager
 
 	public Object getObjectForId(Object id) throws Exception
 	    {
-	    Object o = idToObj.get(id);
-	    if(o == null)
-	        throw new Exception("Invalid reference id");
-	    return o;
+    	synchronized(this)
+			{
+		    Object o = idToObj.get(id);
+		    if(o == null)
+		        throw new Exception("Invalid reference id");
+		    return o;
+		    }
 	    }
-
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReferenceManager#free(int)
      */
     public void free(Object id,int rev) throws Exception
         {
-        Object o = getObjectForId(id);
-        ObjectID oid = getIdForObject(o);
-        if(oid.rev == rev)
-        	{
-        	objToId.remove(o);
-        	idToObj.remove(id);
-        	}
+    	synchronized(this)
+			{
+	        Object o = getObjectForId(id);
+	        ObjectID oid = findIdForObject(o);
+	        if(oid.rev == rev)
+	        	{
+	        	objToId.remove(o);
+	        	idToObj.remove(id);
+	        	}
+	        }
         }
-
     }
