@@ -100,8 +100,13 @@ public class MessageReader implements IReader
             }
         else if(c == '}')	// }id
             {
-            int id = Integer.parseInt(readToken(strm));
+            int id = ((Integer)readToken(strm)).intValue();
             return referenceManager.getObjectForId(id);
+            }
+        else if(c == '\\')
+            {
+            c = strm.read();
+            return new Character((char)c);
             }
         else
             throw new Exception("unsupported macro sequence");
@@ -147,7 +152,7 @@ public class MessageReader implements IReader
         return sb.toString();
         }
 
-    static protected String readToken(Reader strm) throws IOException
+    static protected Object readToken(Reader strm) throws IOException
         {
         StringBuffer sb = new StringBuffer();
         boolean end = false;
@@ -166,9 +171,38 @@ public class MessageReader implements IReader
                 sb.append((char) c);
             }
         String ret = sb.toString();
+        if(isInteger(ret))
+            return Integer.valueOf(ret);
+        else if(shouldBeNumber(ret))
+            return Double.valueOf(ret);
+        else if(ret.equalsIgnoreCase("nil"))
+            return null;
+        else if(ret.equalsIgnoreCase("t"))
+            return Boolean.TRUE;
         return ret;
         }
     
+    static boolean isInteger(String s)
+        {
+        boolean ret = true;
+        for(int i=0;ret && i<s.length();++i)
+            {
+            if(i == 0)
+                {
+                ret = Character.isDigit(s.charAt(i))
+                	|| s.charAt(i) == '-';
+                }
+            ret = Character.isDigit(s.charAt(i));
+            }
+        return ret;
+        }
+
+    static boolean shouldBeNumber(String s)
+        {
+        char c = s.charAt(0);
+        return Character.isDigit(c) || c == '.' || c == '-';
+        }
+
     public static void main(String[] args)
         {
         IReferenceManager referenceManager = new ReferenceManager();
@@ -182,7 +216,7 @@ public class MessageReader implements IReader
             	}
             catch(Exception ex)
             	{
-                System.out.println(ex.getMessage());
+                System.out.println(ex.toString());
                 break;
             	}
             }
