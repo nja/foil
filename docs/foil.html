@@ -488,6 +488,8 @@ CLASS.      </pre>
 </ul>
 
 	<a name="objects"></a> <h3>Object Creation</h3>
+    In addition to the generated ctor wrappers (<code>classname.new</code> described above), the following, built upon the same,
+    add some additional capabilites and ease of use:
 	<ul>
 		<li>
 			<strong><a name="makenew"></a>Generic Function</strong> <code>(make-new classname. &rest args) -> fref</code>
@@ -673,7 +675,8 @@ CL-USER 104 > (full-class-name string.)
 </ul>
 
         <a name="proxies"></a> <h3>Proxies and Callbacks</h3> 
-        Proxies allow the creation of foreign objects that implement one or more interfaces (or a single delegate, in the case of CLI) 
+        Proxies allow the creation of foreign objects that implement one or more interfaces (or in the case of CLI, one or more interfaces or 
+        a single delegate) 
 		in Lisp, and thus callbacks from the foreign VM to Lisp. Foil supports Lisp calling foreign runtime calling Lisp... to an 
         arbitrary (probably stack-limited) depth.
 <ul>
@@ -692,7 +695,7 @@ CL-USER 104 > (full-class-name string.)
         <li>
             <strong>Function</strong> <code>(make-new-proxy arg-marshall-flags arg-marshall-depth &rest interface-types) -> proxy fref</code>
             <p>
-            Creates and returns a proxy object that implements the given interface or delegate types. <code>arg-marshall-flags</code> and
+            Creates and returns a proxy object that implements the given interface types or delegate type. <code>arg-marshall-flags</code> and
             <code>arg-marshall-depth</code> will be used to marshall the arguments to the callback. No handlers are defined by this function.
             </p>
         </li>
@@ -700,7 +703,7 @@ CL-USER 104 > (full-class-name string.)
             <li>
             <strong>Macro</strong> <code>(new-proxy proxy arg-marshall-flags arg-marshall-depth &rest interface-defs) -> proxy fref</code>
             <p>
-            Creates and returns a proxy object that implements the given interface or delegate types. 
+            Creates and returns a proxy object that implements the given interface types or delegate. 
                 <code>
                 <br>proxy -> a symbol
 <br>interface-def -> (interface-name method-defs+)
