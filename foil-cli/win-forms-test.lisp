@@ -1,7 +1,8 @@
 ;;; Use the gen-cli-wrappers.lisp to generate the cli wrapper files. 
 ;;; The load-foil-and-cli-defsys.lisp has a function (load-foilcli-defsys) to compile and load the files. 
 ;;; You can also uncomment the block below to load the files.
-#|
+;;#|
+(defvar *dev-path* "/dev")
 (load "/dev/foil/foil")
 (use-package :foil)
 (flet (( p-name (def-path)
@@ -9,12 +10,13 @@
 	(load (p-name "foil/foil-cli/cli-system"))
 	(load (p-name "foil/foil-cli/cli-system-collections"))
 	(load (p-name "foil/foil-cli/cli-reflection"))
-	(load (p-name "foil/foil-cli/cli-system-data-sqlclient"))
+	;(load (p-name "foil/foil-cli/cli-system-data-sqlclient"))
 	(load (p-name "foil/foil-cli/cli-system-drawing"))
 	(load (p-name "foil/foil-cli/cli-system-componentmodel"))
 	(load (p-name "foil/foil-cli/cli-system-windows-forms-toplevel"))
-	(load (p-name "foil/foil-cli/foil-cli")))
-|#
+	;(load (p-name "foil/foil-cli/foil-cli")
+        )
+;;|#
 
 (eval-when (:compile-toplevel :load-toplevel)
 (require "comm"))
