@@ -126,9 +126,8 @@ Sendable messages:
 				<li>"Strings are in double quotes"</li>
 				<li>Numbers are unadorned decimal numbers with or without a decimal point</li>
 				<li>nil is null/false</li>
-				<li>t or non-nil is true</li>
+				<li>t is true</li>
 			</ul>
-					Note that the foreign runtime server is responsible for Common Lisp style boolean handling.
 				In addition, a string representation of a primitive/value-type is also acceptable, as long as there 
 				is a standard parsing function that will interpret it. This feature can be used to pass DateTimes to the CLR, 
 				for instance.
@@ -137,7 +136,7 @@ Sendable messages:
 				Occasionally it may be necessary to provide a hint as to the intended type of an argument in order to force resolution
 				to a particular overload.
 
-				<p><code>#{:box "packageQualifiedTypeName" value}</code><br>
+				<p><code>#{:box typename value}</code><br>
 
 				<p>Where typename is the name of the Object representation of a primitive/value type (Float/Single, Integer/Int32 etc)??
                 <p>Where typename is the keywordized name of the type in the native language of the runtime (C#/Java) i.e. :int :long :short :float etc.
@@ -239,19 +238,19 @@ Sendable messages:
 <pre>
 (:ret (	(:class tref)
         (:bases tref ...) ;most-derived to least-derived
-        (:ctors (:args tref ...) ...)
+        (:ctors (:args ((:name string)(:type tref)) ...) ...)
         (:methods ((:mref mref)
                    (:name string)
                    (:is-static bool)
-                   (:args tref ...)
+                   (:args ((:name string)(:type tref)) ...)
                    (:ret tref)) ...)
         (:fields ((:name string)
                   (:is-static bool)
                   (:type tref)) ...)
         (:properties ((:name string)
                       (:is-static bool)
-                      (:get (:args tref ...) (:ret tref))
-                      (:set (:args tref ...) (:ret tref))) ...)))</pre></code>
+                      (:get (:args ((:name string)(:type tref)) ...) (:ret tref))
+                      (:set (:args ((:name string)(:type tref)) ...) (:ret tref))) ...)))</pre></code>
 
 <h3>Arrays</h3>
 	Creating an array:<br>

@@ -273,7 +273,7 @@ public class Reflector implements IReflector
         w.write(" (");
         
         w.write("(:class");
-        baseMarshaller.marshallAtom(c,w,IBaseMarshaller.MARSHALL_ID,0);
+        baseMarshaller.marshallAtom(c,w,IBaseMarshaller.MARSHALL_ID,1);
         w.write(')');
 
         ArrayList supers = new ArrayList();
@@ -312,11 +312,7 @@ public class Reflector implements IReflector
                 {
                 Constructor ctor = ctors[i];
                 Class[] params = ctor.getParameterTypes();
-                w.write("(:args");
-                for(int p=0;p<params.length;p++)
-                    baseMarshaller.marshallAtom(params[p],w,IBaseMarshaller.MARSHALL_ID,1);
-                
-                w.write(')');
+                reflectParams(params,w);
                 }
             w.write(')');
             }
@@ -336,11 +332,13 @@ public class Reflector implements IReflector
                 baseMarshaller.marshallAtom(method.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                 w.write(')');
 
-                w.write("(:is-static ");
-                baseMarshaller.marshallAtom(new Boolean(Modifier.isStatic(method.getModifiers())),
+                if(Modifier.isStatic(method.getModifiers()))
+                    {
+                    w.write("(:is-static ");
+                    baseMarshaller.marshallAtom(Boolean.TRUE,
                         					w,IBaseMarshaller.MARSHALL_ID,0);
-                w.write(')');
-
+                    w.write(')');
+                    }
                 reflectMethodSignature(method,w);
                 }
             w.write(')');
@@ -358,10 +356,13 @@ public class Reflector implements IReflector
                 baseMarshaller.marshallAtom(field.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                 w.write(')');
 
-                w.write("(:is-static ");
-                baseMarshaller.marshallAtom(new Boolean(Modifier.isStatic(field.getModifiers())),
-                        					w,IBaseMarshaller.MARSHALL_ID,0);
-                w.write(')');
+                if(Modifier.isStatic(field.getModifiers()))
+                    {
+	                w.write("(:is-static ");
+	                baseMarshaller.marshallAtom(Boolean.TRUE,
+	                        					w,IBaseMarshaller.MARSHALL_ID,0);
+	                w.write(')');
+                    }
 
                 w.write("(:type ");
                 baseMarshaller.marshallAtom(field.getType(),w,IBaseMarshaller.MARSHALL_ID,1);
@@ -416,13 +417,33 @@ public class Reflector implements IReflector
     	throws IOException
         {
         Class[] params = method.getParameterTypes();
-        w.write("(:args");
-        for(int p=0;p<params.length;p++)
-            baseMarshaller.marshallAtom(params[p],w,IBaseMarshaller.MARSHALL_ID,1);
-        w.write(')');
-
-        w.write("(:ret ");
+        reflectParams(params,w);
+        w.write("(:ret");
         baseMarshaller.marshallAtom(method.getReturnType(),w,IBaseMarshaller.MARSHALL_ID,1);
         w.write(')');
         }
-    }
+    
+
+	void reflectParams(Class[] params, Writer w)
+	throws IOException
+		{
+	    w.write("(:args ");
+	    for(int p=0;p<params.length;p++)
+	        {
+	        w.write('(');
+	
+	        //we don't have param names in Java (maybe in 5?), but will in .Net
+	//        w.write("(:name");
+	//        ...
+	//        w.write(')');
+	        
+	        
+	        w.write("(:type");
+	        baseMarshaller.marshallAtom(params[p],w,IBaseMarshaller.MARSHALL_ID,1);
+	        w.write(')');
+	        
+	        w.write(')');
+	        }
+	    w.write(')');
+		}
+}
