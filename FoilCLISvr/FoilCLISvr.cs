@@ -10,16 +10,37 @@
  *   You must not remove this notice, or any other, from this software.
  */
 using System;
+using System.IO;
+using System.Collections;
+using com.richhickey.foil;
 
 namespace com.richhickey.foil
 {
 	/// <summary>
-	/// Summary description for IReferenceManager.
+	/// Summary description for Class1.
 	/// </summary>
-	public interface IReferenceManager
+	class FoilCLISvr
 	{
-		int getIdForObject(Object o);
-		Object getObjectForId(int id);
-		void free(int id);
+		/// <summary>
+		/// The main entry point for the application.
+		/// </summary>
+		[STAThread]
+		static void Main(string[] args)
+		{
+			IReader rdr	= new MessageReader();
+			for(;;)
+			{
+			try
+				{
+				ArrayList al = rdr.readMessage(Console.In);
+				Console.WriteLine(al.ToString());
+				}
+			catch(Exception ex)
+			{
+				Console.WriteLine(ex.Message);
+				break;
+				}
+			}
+		}
 	}
 }
