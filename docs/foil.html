@@ -14,7 +14,59 @@
 	other, from this software.
 	</p>
 
-<h2>Description and Rationale</h2>
+	<h2>Contents</h2>
+
+	<ul>
+		<li>
+			<a href="#description">Description</a>
+		</li>
+		<li>
+			<a href="#download">Download</a>
+		</li>
+		<li>
+			<a href="#setup">Setup and Configuration</a>
+		</li>
+		<li>
+			<a href="#quickstart">Quick Start</a>
+		</li>
+		<li>
+			<a href="#api">API Reference</a>
+			<ul>
+				<li>
+					<a href="#fvms">Foreign VMs</a>
+				</li>
+				<li>
+					<a href="#frefs">Foreign References</a>
+				</li>
+				<li>
+					<a href="#wrappergen">Wrapper Generation</a>
+				</li>
+				<li>
+					<a href="#objectservices">Object Services</a>
+				</li>
+				<li>
+					<a href="#vectors">Vectors</a>
+				</li>
+				<li>
+					<a href="#proxies">Proxies and Callbacks</a>
+				</li>
+				<li>
+					<a href="#marshalling">Marshalling</a>
+				</li>
+			</ul>
+		</li>
+		<li>
+			<a href="#runtimeservers">Runtime Servers</a>
+		</li>
+		<li>
+			<a href="#protocol">Protocol</a>
+		</li>
+		<li>
+			<a href="#summary">Summary</a>
+		</li>
+	</ul>
+
+<a name="description"></a><h2>Description and Rationale</h2>
 
 Foil consists of a protocol and a set of libraries that facilitate 
 access to popular object runtimes, such as the JVM and the CLI/CLR, and 
@@ -221,7 +273,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
                 </ul>
 
         		
-    <a name="fvms"></a> <h3>Foreign References</h3>
+    <a name="frefs"></a> <h3>Foreign References</h3>
     Foil programs invariably create instances of objects in the foreign VM. Those objects are tracked by Lisp in instances 
     of the <code>fref</code> class. The Foil API and the runtime server cooperate to ensure that objects referenced by Lisp are kept alive
     in the foreign runtime, and that when no longer referenced by Lisp, they become available for collection in the foreign VM. 
@@ -432,7 +484,8 @@ CLASS.      </pre>
 		</li>
 </ul>
 
-    <a name="objectservices"></a> <h3>Object Services</h3> These functions provide 
+    <a name="objectservices"></a> <h3>Object Services</h3> 
+    These functions provide 
     access to basic facilities provided by all runtimes (usually through syntax or 
     the Object class), but should be used instead, as they are portable and can be 
     more efficient, caching and resolving some things locally on the Lisp side.
@@ -473,10 +526,109 @@ CLASS.      </pre>
             (see <code>ensure-typed-ref</code>)
             </p>
         </li>
+        <li>
+            <strong>Function</strong> <code>(iref indexable-obj &rest indexes) -> a value</code>
+            <p>
+            Calls the default indexer for the object. CLI only. Settable.
+            </p>
+        </li>
 
     </ul>
 
-<h2>Protocol</h2>
+        <a name="vectors"></a> <h3>Vectors</h3> 
+
+        <a name="proxies"></a> <h3>Proxies and Callbacks</h3> 
+
+        <a name="marshalling"></a> <h3>Marshalling</h3> 
+        <p>
+    Foil supports an extensible marshalling system which allows the values of reference/composite types to be returned in 
+    addition to, or even instead of, the references themselves. Used appropriately, this can substantially reduce the number
+    of round trips between processes and avoid significant 'chatter' overhead. </p>
+
+    <p>
+    Marshalling comes into play whenever a reference type is returned from a Foil function. With certain settings, it is possible 
+    to return any or all of a reference, its hash code, its type, and its value (and the same for any of its 
+    value's reference members), to a specific depth. The nature and depth of the marshalling is governed by two special variables on the Lisp side - 
+    <code>*marshalling-flags*</code> and <code>*marshalling-depth*</code>.
+    </p>
+    
+
+    <p>The format of marshalled values is determined
+    by the runtime servers, and both the Java and CLI servers provided with Foil have facilites for adding new marshallers 
+    for specific types. The way an object's value is marshalled is a function of its type.</p>
+      
+      <p>
+      Class or Types will always marshall the string representing the packageQualifiedTypeName, ignoring <code>*marshalling-depth*</code>
+      <p>By default, the following marshalling will be performed when requested, i.e. <code>*marshalling-depth*</code> > 0</p>
+      <ul>
+		<li>Arrays marshall as simple vectors</li>
+		<li>Collections and other enumerable entities marshall as simple lists</li>
+		<li>Default, if no other marshaller applies - an assoc-list of keywordized-property-name/value pairs for any public properties
+            of the object</li>
+      </ul>
+      </p>
+      
+	<ul>
+        <li>
+			<strong>Special Variable</strong> <code>*marshalling-depth*</code>
+			<p>
+		    Default: 0
+            <br>A depth of 0 means no values are marshalled, a setting of 1 means 
+			that values will be marshalled for the returned object (if it is a reference), but not any nested references. 
+			When > 1 nested reference types will marshall, to that depth of nesting.
+			</p>
+            </li>
+          <li>
+			<strong>Special Variable</strong> <code>*marshalling-flags*</code>
+			<p>Either <code>+MARSHALL-NO-IDS+</code>, or the logical or-ing of <code>+MARSHALL-ID+</code> and zero or more of:
+              <code>+MARSHALL-HASH+</code> and <code>+MARSHALL-TYPE+</code>
+		    <br>Default: <code>+MARSHALL-ID+</code>
+            <br>A setting of <code>+MARSHALL-NO-IDS+</code> means that no frefs will be returned, and thus no references will be held 
+              on the VM side. If <code>*marshalling-depth*</code> is 0 then nil will be returned. If <code>*marshalling-depth*</code> > 0
+              then the value will be returned instead of the fref.
+			</p>
+              <p>Otherwise, <code>+MARSHALL-ID+</code> must be set, and frefs will be returned for reference types. 
+              If <code>*marshalling-depth*</code> > 0, 
+              then the marshalled values will be in the <code>fref-val</code> slot. If <code>+MARSHALL-HASH+</code> is set then 
+              the object's hash code will be calculated and stored in the <code>fref-hash</code> slot. Similarly, if 
+              <code>+MARSHALL-TYPE+</code> is set then 
+              the object's class/type will be determined and stored in the <code>fref-type</code> slot.
+              </p>
+            </li>  
+        <li>
+            <strong>Macro</strong> <code>(with-marshalling (depth &rest flags) &body body)</code>
+            <p>
+            Evaluates the body in a context in which the <code>*marshalling-depth*</code> is set to depth and 
+            <code>*marshalling-flags*</code> to the <code>logior</code> of flags.
+            </p>
+        </li>
+            
+            </ul>      
+
+            Marshalling example:
+<pre>
+CL-USER 79 > (setf string-class (get-type-for-name "java.lang.String"))
+#}1
+
+CL-USER 88 > (class.getpackage string-class)
+#}12
+
+CL-USER 90 > (pprint (with-marshalling (1 +MARSHALL-NO-IDS+)
+                       (class.getpackage string-class)))
+
+((:IMPLEMENTATIONTITLE . "Java Runtime Environment")
+ (:IMPLEMENTATIONVENDOR . "Sun Microsystems, Inc.")
+ (:IMPLEMENTATIONVERSION . "1.4.2_05")
+ (:NAME . "java.lang")
+ (:SEALED)
+ (:SPECIFICATIONTITLE . "Java Platform API Specification")
+ (:SPECIFICATIONVENDOR . "Sun Microsystems, Inc.")
+ (:SPECIFICATIONVERSION . "1.4")) </pre>
+
+
+<a name="runtimeservers"></a><h2>Runtime Servers</h2>
+
+<a name="protocol"></a><h2>Protocol</h2>
 
 The foil protocol describes the on-stream interface between a Lisp 
 instance and a runtime instance, and should not be confused with the foil 
