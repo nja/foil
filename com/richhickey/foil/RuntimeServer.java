@@ -49,13 +49,15 @@ public class RuntimeServer implements IRuntimeServer
         this.reflector = reflector;
         }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.richhickey.foil.IRuntimeServer#processMessages()
-     */
-public Object processMessage(Reader ins,Writer outs) throws IOException
+
+
+public Object processMessages(Reader ins,Writer outs) throws IOException
 	{
+	//on this thread the main streams are also the proxy streams
+	proxyReader.set(ins);
+	proxyWriter.set(outs);
+	
+	for(;;)
 	{
 	    String resultMessage = null;
 		try{
@@ -112,7 +114,7 @@ public Object processMessage(Reader ins,Writer outs) throws IOException
 				resultMessage = createRetString(null,marshaller,0,0);
 			    }
 			else if(isMessage(":ret",message))
-				//only on callback
+				//only on callback, note will break out of message loop
 				{
 				return message.get(1);
 				}
@@ -254,17 +256,7 @@ public Object processMessage(Reader ins,Writer outs) throws IOException
 			outs.flush();
 		    }
 		}
-	return null;
-	}
-
-public void processMessages(Reader ins,Writer outs) throws IOException
-	{
-	//on this thread the main streams are also the proxy streams
-	proxyReader.set(ins);
-	proxyWriter.set(outs);
-	
-	for(;;)
-		processMessage(ins,outs);
+	//return null;
 	}
 
 	String stringArg(Object o)
@@ -425,6 +417,6 @@ public void processMessages(Reader ins,Writer outs) throws IOException
 		writer.flush();
 		
 		
-		return processMessage(reader,writer);
+		return processMessages(reader,writer);
 		}
     }

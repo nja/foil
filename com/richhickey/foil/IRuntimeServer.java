@@ -17,6 +17,6 @@ import java.lang.reflect.*;
  *
  */
 public interface IRuntimeServer {
-    public void processMessages(Reader ins,Writer outs) throws IOException;
+    public Object processMessages(Reader ins,Writer outs) throws IOException;
     public Object proxyCall(int marshallFlags,int marshallDepth,Method method, Object proxy,Object[] args) throws Exception;
 }
