@@ -124,8 +124,9 @@ public class Reflector implements IReflector
     static boolean isCongruent(Class[] params,List args)
         {
         boolean ret = false;
-        if((params.length == 0 && args == null)
-                || params.length == args.size())
+        if(args == null)
+            return params.length == 0;
+        if(params.length == args.size())
             {
             ret = true;
             for(int i=0;ret && i<params.length;i++)
