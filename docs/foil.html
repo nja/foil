@@ -16,7 +16,7 @@
 
 <h2>Description and Rationale</h2>
 
-Foil consists of a protocol, and a set of libraries, that facilitate 
+Foil consists of a protocol and a set of libraries that facilitate 
 access to popular object runtimes, such as the JVM and the CLI/CLR, and 
 their libraries, from Lisp.  A protocol is defined which abstracts out the 
 common features provided by Java-like environments - object construction, 
@@ -26,18 +26,21 @@ format for communication.  Runtime server applications are provided that
 utilize Java and C# libraries to implement the object runtime side of the 
 protocol for Java and the CLI.  Source for the applications is provided so 
 that custom hosts can be built.  A library for Common Lisp is provided 
-that implements the consumer side of the protocol, and provides seamless 
+that implements the consumer side of the protocol, and offers seamless 
 access to the foreign objects in a Lisp-like manner.  
 
-The design of Foil owes much to jfli, an in-process solution to the same 
+The design of Foil owes much to <a href="http://jfli.sourceforge.net/">jfli</a>, an in-process solution to the same 
 problem for Java, and it remains extremely similar in the Lisp interface.  
 Several factors motivated the significant difference in the Foil design -
 its use of an out-of-process instance of the foreign runtime: 
 
 <ul>
-<li>jfli did not see wide porting, due to its use of LispWorks' sophisticated FLI to access JNI</li>
-<li>I found that I needed to access already-running instances of the JVM, for instance servlet containers, as done in Lisplets</li>
-<li>I wanted to access the CLR/CLI in a similar fashion</li>
+<li>jfli did not see wide porting, due to its use of LispWorks' sophisticated FLI to access JNI, 
+    and the lack of corresponding facilities in some other Lisps</li>
+<li>I found that I needed to access already-running instances of the JVM, 
+    for instance servlet containers, as done in <a href="http://lisplets.sourceforge.net/">Lisplets</a>, and felt
+    I could accomplish similar things with less effort with Foil + marshallers</li>
+<li>I wanted to access the CLR/CLI in a similar fashion to Java</li>
 </ul>
 
 The major tradeoff in stream-based access to out-of-proc runtimes is a 
@@ -48,9 +51,9 @@ certain scenarios, since the APIs of these platforms tend to be very
 transfer of large and composite objects with minimal call overhead, in a 
 manner that doesn't pollute the Lisp code on the consumer side.  
 
-Foil provides all the facilities of jfli and more. 
+<h4>Foil provides all the facilities of jfli and more. </h4>
 
-Some of the additions are:
+<h5>Some of the additions are:</h5>
 
 <ul> 
 	<li>(Hopefully) Much improved portability (n.b. it has not been ported, but is mostly standard CL)
@@ -58,19 +61,19 @@ Some of the additions are:
 	<li>Support for CLR and JavaBean properties</li>
 	<li>Simultaneous access to multiple runtimes</li>
 	<li>Simultaneous access to the CLR and Java</li>
-	<li>A marshalling system, which can, in a single call, pull across the types, hashcodes, and/or values of 
+	<li>A marshalling system which can, in a single call, pull across the types, hashcodes, and/or values of 
 reference objects to an arbitrary depth, with user customizable value marshallers.</li> 
-	<li>All references to the same remote object are eq on the Lisp side</li> 
+	<li>All references to the same remote object are <code>eq</code> on the Lisp side</li> 
 	<li><code>ensure-typed-ref</code>, which makes a remote reference 
 its most fully derived type in Lisp, works in place, using <code>change-class</code></li> 
 	<li>vector argument boxing, so lightweight vectors-as-arguments can be created in-place 
 		without the overhead of multiple calls to create and initialize the vector</li>
 	<li>keyword-style init of properties in constructor calls is supported by the ctor functions, and can be leveraged 
-		in apply and mapping scenarios (this feature was previously limited to the new macro)</li>
+		in apply and mapping scenarios (this feature was previously limited to the <code>new</code> macro)</li>
 </ul>
 
 
-Features of jfli that are retained/enhanced:
+<h5>Features of jfli that are retained/enhanced:</h5>
 
 	<ul>
 
@@ -116,7 +119,9 @@ Features of jfli that are retained/enhanced:
 	<a name="download"></a> <h3>Download</h3>
 
 	<p>
-	Foil is hosted on <a href="http://sourceforge.net/projects/foil/">SourceForge</a>
+	<a href="http://sourceforge.net/projects/foil/">Foil is hosted on SourceForge</a> 
+    <a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=125543&amp;type=1"
+				width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
 	</p>
 
 
@@ -155,11 +160,11 @@ Features of jfli that are retained/enhanced:
 						<li>
 							A constructor, <code>(classname.new &rest args) -> fref</code>, which 
 							returns a foreign-reference (fref) to the newly created object. Note that the constructor function,
-							and therefor everything built upon it, can take the actual arguments to the Java/CLI ctor, followed by
-							zero or more porperty initializers, which take the form:<br>
+							and therefore everything built upon it, can take the actual arguments to the Java/CLI ctor, followed by
+							zero or more property initializers, which take the form:<br>
 							:keywordized-propertyname value<br>
 							e.g. <code>(window.new parent :width 200 :height 200)</code> <br>
-							thus supporting the creation and setup of a new object in a single call
+							thus supporting the creation and some setup of a new object in a single call
 
 						</li>
 						<li>
@@ -229,7 +234,11 @@ Features of jfli that are retained/enhanced:
 
 The foil protocol describes the on-stream interface between a Lisp 
 instance and a runtime instance, and should not be confused with the foil 
-library which provides the interface to the protocol for Common Lisp.  
+library which provides the interface to the protocol for Common Lisp.  A user
+        of Foil will not need to know the protocol, but if you intend to add support
+        for another runtime environment (Python anyone?) or host language (Scheme anyone?),
+        hopefully this section will help. Note that the protocol docs are not formal, and
+        mostly consists of notes to myself. This will be improved when I get time.
 
 <h3>Connection Services</h3> 
 
@@ -237,8 +246,9 @@ Foil is a stream-based protocol.  However, no
 protocol is provided for the establishment of the streams - that is an 
 implementation detail of the runtime and Lisp libraries.  It is suggested 
 that any foil runtime implementation provide at least a stand-alone 
-executable server that implements the protocol over its standard IO ports.  
-Many other scenarios are possible, including socket servers, pre-existing Lisp and runtime 
+executable server that implements the protocol over its standard IO ports, as well  
+        as being able to run over a TCP/IP socket.
+Many other scenarios are possible, including multi-socket servers, pre-existing Lisp and runtime 
 instances discovering each other etc.  The remainder of the protocol 
 description presumes a bi-directional stream has been established.  
 
@@ -263,6 +273,9 @@ Sendable messages:
 	<li>(:vset</li>
 	<li>(:vlen</li>
 	<li>(:proxy</li>
+	<li>(:iget</li>
+	<li>(:iset</li>
+
 
 </ul>
 <p>Returnable messages:
@@ -315,6 +328,7 @@ Sendable messages:
 			a marshall-value-depth-limit of 0 means no reference values are marshalled, a setting of 1 means 
 			that reference values will be marshalled for the return value (if it is a reference), but not any nested references. 
 			When > 1 nested reference types will marshall to that depth of nesting.
+            <br> If marshalling-flags is 0, no references will be returned (only values) and if depth is also 0 then nil will be returned.
 
 <br>	target is the object upon which to invoke the method/field/property - pass nil if static
 
@@ -369,28 +383,28 @@ Sendable messages:
 
 				<li>:ref, id, and rev must be supplied, all others are optional</li>
 
-				<li>:id A unique integer reference that identifies the object. The object will be kept alive on the hosting side 
+				<li>id - A unique integer reference that identifies the object. The object will be kept alive on the hosting side 
 					until it is freed. Multiple references to the same object will always have the same id. 
-					This will only be available if the marshall-id flag is set or when marshall-value-depth-limit is or reaches 0</li>
+					</li>
 
-				<li>:type A reference to the Type (CLI) or Class (Java) object that is the type of the object. Note that this may be the 
+				<li>:type - A reference to the Type (CLI) or Class (Java) object that is the type of the object. Note that this may be the 
 					first time this reference is seen (and thus it must be registered for lifetime maintenance)
 					This will only be available if the marshall-type flag is set.</li>
 
-				<li>:hash An integer representing the hash value of the object. This will only be available if the marshall-hash flag is set.</li>
+				<li>:hash - An integer representing the hash value of the object. This will only be available if the marshall-hash flag is set.</li>
 
-				<li>:val A Lisp-readable representation of the value of the object. This will be obtained by using the marshaller 
+				<li>:val - A Lisp-readable representation of the value of the object. This will be obtained by using the marshaller 
 					registered for the type of the object. This will only be available when marshall-value-depth-limit is > 0. 
 					Note #{ and #} user-space read macros are used by the implementation of foil.</li>
 	
 
 				</ul>
 				 Note that it is possible to return marshalled values of reference objects without maintaining the reference object 
-				 on the hosting side (by clearing the marshall-id flag and having marshall-value-depth-limit > 0
+				 on the hosting side (by setting the marshall-id flag to 0 and having marshall-value-depth-limit > 0
 
 				 <p>A reference (obtained previously) is passed back to its host like this:
 
-				 <p><code>#}an-int-id</code>
+				 <p><code>#}123</code>
 
 				 <p>The host will look up the object with that id and pass it along to the call.
 
@@ -403,20 +417,22 @@ Sendable messages:
 <h3>Object support services</h3>
 		<h4>Object references</h4>
 		<h4>Object lifetime management</h4>
-			<code>(:free refid ...)</code> -> nil
+			<code>(:free refid refrev ...)</code> -> nil
 			
 
-			<p>Allows one or more refs to be GC-ed on the hosting side. It is an error to refer to these refids again.<br>
+<p>a list of id/rev pairs is passed.  Allows one or more refs to be GC-ed 
+on the hosting side.  It is an error to refer to these refids again.<br> 
 
         <h4>Object marshalling</h4><p>
-			It is anticipated that runtime servers will provide for user-installable marshallers, associted with types,
+			It is anticipated that runtime servers will provide for user-installable marshallers, associated with types,
 			that will render the value of an object of that type on a stream in a form readable by Lisp. By default at least
 			the following marshallers should be provided:
 				<ul>
 
-				<li>Type|Class - should marshall the string representing the packageQualifiedTypeName</li>
+				<li>Type|Class - must always marshall the string representing the packageQualifiedTypeName, ignoring marshalling-depth</li>
 				<li>arrays - should marshall as simple vector literals: #(...)</li>
-				<li>default, if no other marshaller applies - should yield an assoc-list of property-name/value pairs</li>
+				<li>collections and other enumerable entities - should marshall as simple lists (...)</li>
+				<li>default, if no other marshaller applies - should yield an assoc-list of keywordized-property-name/value pairs</li>
 
 				</ul><p>
 			In addition to marshalling returns during calls, the value of an object reference can be explicitly marshalled:
