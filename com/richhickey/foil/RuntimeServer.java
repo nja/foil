@@ -446,6 +446,8 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 		Reader reader = (Reader)proxyReader.get();
 		Writer writer = (Writer)proxyWriter.get();
 		
+		if(reader == null || writer == null)
+			throw new Exception("No Foil socket initialized on this thread");
 		//form the call message:
 		//(:proxy-call method-symbol proxy-ref args ...)
 		//method-symbol has the form: |package.name|::classname.methodname
