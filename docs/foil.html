@@ -47,6 +47,7 @@ Sendable messages:
 	<li>(:array</li>
 	<li>(:aget</li>
 	<li>(:aset</li>
+	<li>(:alen</li>
 
 </ul>
 <p>Returnable messages:
@@ -64,15 +65,9 @@ Sendable messages:
 <p>		Where member-type is an integer representing one of:
 <ul>		 
 			<li>method (0)</li>
-			 <li>field-get (1)</li>
-			 <li>field-set (2) </li>
+			 <li>field (1)</li>
 			 <li>property-get (3)</li>
 			 <li>property-set (4)</li>
-			 <li>static-method (5)</li>
-			 <li>static-field-get (6)</li>
-			 <li>static-field-set (7) </li>
-			 <li>static-property-get (8)</li>
-			 <li>static-property-set (9)</li>
  </ul>
 <p>		Wherever a packageQualifiedTypeName is required, if the namespace/package is not included, 
 		package is presumed to be the base namespace of the runtime (i.e. java.lang or System)
@@ -87,7 +82,7 @@ Sendable messages:
 <p> 	<code>(:new tref marshall-flags marshall-value-depth-limit (args ...) (property-inits ...) )</code><br>
 
 <p>	Calling a callable <br>
-			<code>(:call cref marshall-flags marshall-value-depth-limit args ...)</code><br>
+			<code>(:call cref marshall-flags marshall-value-depth-limit target args ...)</code><br>
 
 			Example:<br>
 				<code>(:call #}101 1 0 2 #}17 "fred")</code>
@@ -107,7 +102,7 @@ Sendable messages:
 			that reference values will be marshalled for the return value (if it is a reference), but not any nested references. 
 			When > 1 nested reference types will marshall to that depth of nesting.
 
-<br>			num-args is the length of the remainder of the call list (may be 0)
+<br>	target is the object upon which to invoke the method/field/property - pass nil if static
 
 <br>			args are zero or more args as per below.
 
@@ -290,6 +285,8 @@ Sendable messages:
 		-> value</li>
 	<li>(:aset aref index value)
 		-> nil</li>
+	<li>(:alen aref)
+		-> int</li>
 	</ul>
 
 <pre>
