@@ -7,7 +7,7 @@
 ;    You must not remove this notice, or any other, from this software.
 
 (defpackage :foil
-  (:use :common-lisp :lispworks)
+  (:use :common-lisp)
   (:export 
 
    :dump-wrapper-defs
@@ -67,6 +67,25 @@
    ))
 
 (in-package :foil)
+
+;; porting section - hopefully everything LW-specific is here and the rest is straight CL
+;; find equivalents for your CL
+
+(defun string-append (&rest strings)
+  #+:lispworks(apply #'lispworks::string-append strings))
+
+(defun add-special-free-action (fsym)
+  #+:lispworks(hcl:add-special-free-action fsym))
+
+(defun flag-special-free-action (obj)
+  #+:lispworks(hcl:flag-special-free-action obj))
+
+(defun make-value-weak-hash-table ()
+  #+:lispworks(make-hash-table :weak-kind :value))
+
+;;;;; end porting section ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 
 (defvar *fvm* nil
   "all messages will be sent to the foreign-vm to which this is bound")
@@ -132,21 +151,21 @@ please ignore this scratchpad stuff
 
 (defun make-fref (id rev &key type hash val)
   (let ((ret (make-instance 'fref :id id :rev rev :type type :hash hash :val val)))
-    (hcl:flag-special-free-action ret)
+    (flag-special-free-action ret)
     ret))
 
 (defun free-fref (obj)
   (when (typep obj 'fref)
     (push obj (fvm-free-list (fref-vm obj)))))
 
-(hcl:add-special-free-action 'foil::free-fref)
+(add-special-free-action 'foil::free-fref)
 
 (defmethod print-object ((fref fref) stream)
   (format stream "#}~A" (fref-id fref)))
 
 (defclass foreign-vm ()
   ((stream :initarg :stream :reader fvm-stream)
-   (fref-table :initform (make-hash-table :weak-kind :value) :reader fvm-fref-table)
+   (fref-table :initform (make-value-weak-hash-table) :reader fvm-fref-table)
    (symbol-table :initform (make-hash-table) :reader fvm-symbol-table)
    (free-list :initform nil :accessor fvm-free-list)))
 
@@ -712,7 +731,8 @@ The resulting file will not need a VM running to either compile or load"
 ;;;;;;;;;;;;;portable object stuff;;;;;;;;;;;;;
 
 (defun equals (fref1 fref2)
-  (send-message :equals fref1 fref2))
+  (or (eql fref1 fref2)
+      (and fref1 fref2 (send-message :equals fref1 fref2))))
 
 (defun instance-of (fref type)
   (send-message :is-a fref (type-arg type)))
@@ -720,9 +740,11 @@ The resulting file will not need a VM running to either compile or load"
 (defun to-string (fref)
   (send-message :str fref))
 
-(defun hash (fref)
-  (get-or-init (fref-hash fref)
-               (send-message :hash fref)))
+(defun hash (fref &key rehash)
+  (if rehash
+      (setf (fref-hash fref) (send-message :hash fref))
+    (get-or-init (fref-hash fref)
+                 (send-message :hash fref))))
 
 (defun marshall (fref)
   (setf (fref-val fref)
