@@ -38,18 +38,24 @@ public class MessageReader implements IReader
 	public List readSexpr(Reader strm)
 	throws IOException
 		{
+	    return readDelimitedList(strm,'(',')');
+        }
+
+	public List readDelimitedList(Reader strm, int startc, int endc)
+	throws IOException
+		{
 	    
         int c = strm.read();
         while (Character.isWhitespace((char) c))
             c = strm.read();
         
-        if (c != '(')
+        if (c != startc)
             {
-            throw new IOException("expected sexpr to begin with '('");
+            throw new IOException("expected list to begin with; " + new Character((char)startc));
             }
         List ret = new ArrayList();
 
-        for(strm.mark(1);(c = strm.read()) != ')';strm.mark(1))
+        for(strm.mark(1);(c = strm.read()) != endc;strm.mark(1))
             {
             if (Character.isWhitespace((char) c))
                 continue;
