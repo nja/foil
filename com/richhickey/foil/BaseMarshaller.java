@@ -144,7 +144,8 @@ public class BaseMarshaller implements IBaseMarshaller
             else if(o == byte.class)
                 w.write(":byte");
             }
-        else //write a reference
+        else //write a reference type
+            if((flags & MARSHALL_ID) != 0) //as a reference
             {
             w.write("#{:ref");
             
@@ -180,6 +181,19 @@ public class BaseMarshaller implements IBaseMarshaller
             
             w.write('}');
             }
+        else	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
+            {
+            IMarshaller m = findMarshallerFor(c);
+            if(m != null)
+                {
+                m.marshall(o,w,this,flags,depth - 1);
+                }
+            else
+                {
+                w.write("nil");
+                }
+            }
+
         }
 
     /* (non-Javadoc)
