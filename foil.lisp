@@ -175,6 +175,22 @@
 (defun process-return-message ()
   (let* ((*readtable* *foil-readtable*)
          (ret-stream (get-fvm-stream))
+         (done nil)
+         (ret nil))
+    (do ()
+        (done ret)
+      (let ((msg (read ret-stream)))
+         (case (first msg)
+           (:ret (setf done t ret (second msg)))
+           (:err (error (third msg))) ;just dump stack trace for now
+      ;nested call, hopefully will get TCO
+           (:proxy-call
+            (format ret-stream "(:ret ~S)" (apply #'handle-proxy-call (rest msg)))
+            (force-output ret-stream)))))))
+#|
+(defun process-return-message ()
+  (let* ((*readtable* *foil-readtable*)
+         (ret-stream (get-fvm-stream))
          (msg (read ret-stream)))
     (case (first msg)
       (:ret (second msg))
@@ -184,6 +200,7 @@
        (format ret-stream "(:ret ~S)" (apply #'handle-proxy-call (rest msg)))
        (force-output ret-stream)
        (process-return-message)))))
+|#
 
 (defun handle-braces-macro (cmd &rest args)
   (ecase cmd
