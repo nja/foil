@@ -34,6 +34,9 @@
    :box
    :box-vector
 
+   :iref
+
+   :new-proxy
    :make-new-proxy
    :handle-proxy-call
    
@@ -672,6 +675,40 @@ The resulting file will not need a VM running to either compile or load"
 (defmethod handle-proxy-call (method-symbol proxy &rest args)
   (format t "unhandled :proxy-call ~S ~S ~S~%" method-symbol proxy args)
   nil)
+
+
+(defmacro new-proxy (proxy arg-marshall-flags arg-marshall-depth &rest interface-defs)
+  "proxy -> a symbol
+interface-def -> (interface-name method-defs+)
+interface-name -> classname. (must name an interface type)
+method-def -> (method-name (args*) body)
+method-name -> symbol (without classname)
+
+Creates, and returns an object that implements the supplied interfaces. The symbol proxy
+will be bound to the proxy instance in the body of the method implementations.
+arg-marshall-flags and arg-marshall-depth will be used to marshall the arguments to the proxy
+methods when they are subsequently invoked"
+  (let ((method-sym (gensym))
+        (args-sym (gensym)))
+    `(let ((,proxy (make-new-proxy ,arg-marshall-flags ,arg-marshall-depth
+                                   ,@(mapcar #'car interface-defs))))
+       ,@(mapcan
+          (lambda (interface-def)
+            (mapcar
+             (lambda (method-def)
+               (destructuring-bind (method-name args &body body) method-def
+                 `(defmethod handle-proxy-call
+                             ((,method-sym (eql ',(find-symbol (string-upcase
+                                                                (string-append (first interface-def)
+                                                                               method-name))
+                                                               (symbol-package (first interface-def)))))
+                              (,proxy (eql ,proxy))
+                              &rest ,args-sym)
+                    (destructuring-bind ,args ,args-sym
+                      ,@ body))))
+             (rest interface-def)))
+          interface-defs)
+       ,proxy)))
 
 ;;; Eric
 ;;;;;;;;;;;;;;;;indexer-support;;;;;;;;;;;;;;;;
