@@ -146,6 +146,8 @@ public class Reflector implements IReflector
                         ret = false;
                     else if(paramType == int.class)
                         ret = argType == Integer.class;
+                    else if(paramType == float.class)
+                        ret = argType == Float.class;
                     else if(paramType == double.class)
                         ret = argType == Double.class;
                     else if(paramType == long.class)
