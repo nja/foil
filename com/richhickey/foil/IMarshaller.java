@@ -21,6 +21,7 @@ import java.io.Writer;
  * Window - Preferences - Java - Code Style - Code Templates
  */
 public interface IMarshaller {
-	void marshall(Object o,Writer w, IBaseMarshaller baseMarshaller, int flags,int depth) throws IOException;
+	void marshall(Object o,Writer w, IBaseMarshaller baseMarshaller, int flags,int depth) 
+		throws IOException;
 
 }
