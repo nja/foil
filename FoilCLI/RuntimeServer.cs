@@ -81,6 +81,7 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		for(;;)
 		{
 			String	resultMessage	=	null;
+			String	errorMesssage	=	null;
 			String	sin				=	null;
 			ArrayList message		=	null;
 			try
@@ -254,8 +255,16 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				{
 					int marshallFlags = intArg(message[1]);
 					int marshallDepth = intArg(message[2]);
-					resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
-						message.GetRange(3,message.Count-3)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+					resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth
+																		,message.GetRange(3,message.Count-3))
+																		,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+				}
+				else if(isMessage(":err",message))
+					//only on callback, note will break out of message loop
+				{
+					//there was an error on the Lisp side during a proxy callback
+					//will turn into an exception below
+					errorMesssage = (String)message[1];
 				}
 				else
 				{
@@ -286,15 +295,20 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				outs.Write(')');
 				outs.Flush();
 			}
-
 			if(resultMessage != null)
 			{
 				outs.Write(resultMessage);
 				outs.Flush();
 			}
+			else if (errorMesssage != null)
+			{
+				//there was an error on the Lisp side during a proxy callback
+				//throw an exception to the calling code
+				throw new IOException(errorMesssage);
+			}
 		}
-	}
-	}
+	}	
+}
 
 	public Object proxyCall(int marshallFlags, int marshallDepth, MethodInfo method, Object proxy, Object[] args) 
 	{
