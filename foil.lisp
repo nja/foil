@@ -10,6 +10,7 @@
   (:use :common-lisp)
   (:export 
 
+   :get-library-classnames
    :dump-wrapper-defs
    :dump-wrapper-defs-to-file
    :def-foil-class
@@ -72,7 +73,10 @@
 ;; find equivalents for your CL
 
 (defun string-append (&rest strings)
-  #+:lispworks(apply #'lispworks::string-append strings))
+  #+:lispworks(apply #'lispworks::string-append strings)
+  #-:lispworks
+  (apply #'concatenate 'string 
+	 (mapcar #'(lambda (s) (if (symbolp s) (symbol-name s) s)) strings)))
 
 (defun add-special-free-action (fsym)
   #+:lispworks(hcl:add-special-free-action fsym))
@@ -81,7 +85,18 @@
   #+:lispworks(hcl:flag-special-free-action obj))
 
 (defun make-value-weak-hash-table ()
-  #+:lispworks(make-hash-table :weak-kind :value))
+  #+:lispworks(make-hash-table :weak-kind :value)
+  #+cmu (make-hash-table :weak-p t)
+  #+sbcl (make-hash-table :weak-p nil)
+  #+allegro (make-hash-table :values :weak))
+
+
+(setf (fdefinition 'ensure-class) 
+      #+lispworks #'clos:ensure-class
+      #+cmu #'pcl:ensure-class
+      #+sbcl #'sb-mop:ensure-class
+      #+allegro #'mop:ensure-class)
+ 
 
 ;;;;; end porting section ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -151,14 +166,18 @@ please ignore this scratchpad stuff
 
 (defun make-fref (id rev &key type hash val)
   (let ((ret (make-instance 'fref :id id :rev rev :type type :hash hash :val val)))
-    (flag-special-free-action ret)
+    #+lispworks (flag-special-free-action ret)
+    #+cmu (ext:finalize ret #'foil::free-fref)
+    #+sbcl (sb-ext:finalize ret #'foil::free-fref)
+    #+allegro (excl:schedule-finalization ret #'foil::free-fref)
     ret))
 
 (defun free-fref (obj)
   (when (typep obj 'fref)
     (push obj (fvm-free-list (fref-vm obj)))))
 
-(add-special-free-action 'foil::free-fref)
+#+lispworks 
+ (add-special-free-action 'foil::free-fref)
 
 (defmethod print-object ((fref fref) stream)
   (format stream "#}~A" (fref-id fref)))
@@ -350,10 +369,10 @@ caches this has been done on the class-symbol's plist"
         (mapc #'ensure-foil-class supers)
         (unless (and class (subtypep class 'standard-object))
           (setf class
-                (clos:ensure-class class-sym
-                                   :direct-superclasses (if supers
-                                                            (mapcar #'class-symbol supers)
-                                                          '(fref)))))
+                (ensure-class class-sym
+                              :direct-superclasses (if supers
+                                                       (mapcar #'class-symbol supers)
+                                                     '(fref)))))
         (setf (get class-sym :ensured) t)
         class))))
 
@@ -664,19 +683,23 @@ static fields also get a symbol-macro *classname.fieldname*"
 wrapper functions for its constructors, fields and methods."
   `(locally ,@(do-def-foil-class full-class-name)))
 
+(defun get-library-classnames (jar-or-assemby &rest packages)
+  (apply #'send-message :cnames jar-or-assemby packages))
 
 (defun dump-wrapper-defs-to-file (filename classnames)
   "given a list of classnames (e.g. from get-jar-classnames or get-assembly-classnames), writes
 the expansions of def-foil-class to a file. 
 The resulting file will not need a VM running to either compile or load"
   (with-open-file (s filename :direction :output :if-exists :supersede)
-    (dump-wrapper-defs s classnames)))
+    (dump-wrapper-defs s classnames))
+  filename)
 
 (defun dump-wrapper-defs (strm classnames)
   (let ((forms nil)
         (ensures nil)
         (exports (make-hash-table :test #'equal)))
     (dolist (name (sort classnames #'string-lessp))
+      (format t "def-foil ~A~%" name)
       (let ((defs (do-def-foil-class name)))
         (dolist (def defs)
           (case (car def) 
