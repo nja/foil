@@ -251,7 +251,7 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 			{
 		    String message;
 		    String trace;
-		    if(ex instanceof IOException)
+		    if(ex instanceof SocketException)
 		        throw (IOException)ex;
 		    
 			while(ex.getCause() != null)
