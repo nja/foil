@@ -22,6 +22,6 @@ import java.util.List;
  * Window - Preferences - Java - Code Style - Code Templates
  */
 public interface IReader {
-	List readMessage(Reader strm) throws IOException;
+	List readMessage(Reader strm) throws IOException, Exception;
 
 }

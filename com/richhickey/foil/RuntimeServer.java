@@ -68,6 +68,47 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    Class c = Class.forName((String)message.get(1));
 				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
 			    }
+			else if(isMessage(":free",message))
+			    //(:free refid ...)
+			    {
+			    for(int i=1;i<message.size();i++)
+			        {
+			        int id = Integer.parseInt((String)message.get(i));
+			        referenceManager.free(id);
+			        }
+				resultMessage = createRetString(null,marshaller,0,0);
+			    }
+			else if(isMessage(":str",message))
+			    //(:str refid)
+			    {
+				resultMessage = createRetString(message.get(1).toString(),marshaller,0,0);
+			    }
+			else if(isMessage(":equals",message))
+			    //(:equals ref1 ref2)
+			    {
+			    Object o1 = message.get(1);
+			    Object o2 = message.get(2);
+			    boolean ret = (o1 == null) ? (o2 == null) : o1.equals(o2);
+				resultMessage = createRetString(ret?Boolean.TRUE:Boolean.FALSE,marshaller,0,0);
+			    }
+			else if(isMessage(":type-of",message))
+			    //(:type-of ref)
+			    {
+			    Class c = message.get(1).getClass();
+				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
+			    }
+			else if(isMessage(":is-a",message))
+			    //(:is-a ref tref)
+			    {
+			    Object o = message.get(1);
+			    Class c = (Class)message.get(2);
+				resultMessage = createRetString(c.isInstance(o)?Boolean.TRUE:Boolean.FALSE,marshaller,0,0);
+			    }
+			else if(isMessage(":hash",message))
+			    //(:hash refid)
+			    {
+				resultMessage = createRetString(new Integer(message.get(1).hashCode()),marshaller,0,0);
+			    }
 			}
 		catch(Throwable ex)
 			{
@@ -116,7 +157,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    ReferenceManager referenceManager = new ReferenceManager();
 	    BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
 	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
-	    MessageReader reader = new MessageReader();
+	    MessageReader reader = new MessageReader(referenceManager);
 	    RuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager);
 	    try{
 	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),

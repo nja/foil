@@ -75,6 +75,18 @@ public class BaseMarshaller implements IBaseMarshaller
 		return(c2.isAssignableFrom(c1) && !c1.isAssignableFrom(c2));
         }
     
+    boolean isPrimitive(Class c)
+        {
+        return c == Integer.class
+        	|| c == Long.class
+        	|| c == Double.class
+        	|| c == Float.class
+        	|| c == Boolean.class
+        	|| c == Character.class
+        	|| c == Short.class
+        	|| c == Byte.class;
+        }
+    
     /* (non-Javadoc)
      * @see com.richhickey.foil.IBaseMarshaller#marshallAtom(java.lang.Object, java.io.Writer, int, int)
      */
@@ -88,7 +100,7 @@ public class BaseMarshaller implements IBaseMarshaller
             }
         
         Class c = o.getClass();
-        if(c.isPrimitive())
+        if(isPrimitive(c))
             {
             if(o instanceof Boolean)
                 {

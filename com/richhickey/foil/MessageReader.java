@@ -26,23 +26,28 @@ import java.util.*;
  */
 public class MessageReader implements IReader
     {
-
+    IReferenceManager referenceManager;
+    
+    MessageReader(IReferenceManager referenceManager)
+    	{
+        this.referenceManager = referenceManager;
+    	}
     /* (non-Javadoc)
      * @see com.richhickey.foil.IReader#readMessage(java.io.Reader)
      */
-    public List readMessage(Reader strm) throws IOException
+    public List readMessage(Reader strm) throws IOException, Exception 
         {
         return readSexpr(strm);
         }
 
 	public List readSexpr(Reader strm)
-	throws IOException
+	throws IOException, Exception
 		{
 	    return readDelimitedList(strm,'(',')');
         }
 
 	public List readDelimitedList(Reader strm, int startc, int endc)
-	throws IOException
+	throws IOException, Exception
 		{
 	    
         int c = strm.read();
@@ -71,6 +76,9 @@ public class MessageReader implements IReader
                     strm.reset();
                     ret.add(readString(strm));
                     break;
+                case '#':
+                    ret.add(readMacro(strm));
+                    break;
                 default:
                     strm.reset();
                     ret.add(readToken(strm));
@@ -80,6 +88,31 @@ public class MessageReader implements IReader
         return ret;
         }
 
+	Object readMacro(Reader strm)
+		throws IOException, Exception
+	    {
+	    strm.mark(1);
+        int c = strm.read();
+        if(c == '{')
+            {
+            strm.reset();
+            return processMacroList(readDelimitedList(strm,'{','}'));
+            }
+        else if(c == '}')	// }id
+            {
+            int id = Integer.parseInt(readToken(strm));
+            return referenceManager.getObjectForId(id);
+            }
+        else
+            throw new Exception("unsupported macro sequence");
+	    }
+	
+	Object processMacroList(List args)
+	    {
+	    //todo handle {:box ... and {:array ...
+	    return null;
+	    }
+	
     static protected String readString(Reader strm)
             throws IOException
         {
@@ -114,7 +147,7 @@ public class MessageReader implements IReader
         return sb.toString();
         }
 
-    protected String readToken(Reader strm) throws IOException
+    static protected String readToken(Reader strm) throws IOException
         {
         StringBuffer sb = new StringBuffer();
         boolean end = false;
@@ -138,8 +171,9 @@ public class MessageReader implements IReader
     
     public static void main(String[] args)
         {
+        IReferenceManager referenceManager = new ReferenceManager();
         BufferedReader strm = new BufferedReader(new InputStreamReader(System.in));
-        IReader rdr = new MessageReader();
+        IReader rdr = new MessageReader(referenceManager);
         for(;;)
             {
             try{

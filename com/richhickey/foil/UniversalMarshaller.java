@@ -31,6 +31,8 @@ public class UniversalMarshaller implements IMarshaller
         {
         if(baseMarshaller.canMarshallAsList(o))
             baseMarshaller.marshallAsVector(o,w,flags,depth);
+        else if(o instanceof Class)
+            baseMarshaller.marshallAtom(((Class)o).getName(),w,flags,depth);
         else	//todo, use beaninfo to dump properties as alist
             baseMarshaller.marshallAtom(o.toString(),w,flags,depth);
         }
