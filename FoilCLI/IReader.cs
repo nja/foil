@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections;
 
 namespace com.richhickey.foil
 {
@@ -8,6 +9,6 @@ namespace com.richhickey.foil
 	/// </summary>
 	public interface IReader
 	{
-			public	ArrayList readMessage(TextReader strm);
+			ArrayList readMessage(TextReader strm);
 	}
 }

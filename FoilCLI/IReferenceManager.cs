@@ -7,8 +7,8 @@ namespace com.richhickey.foil
 	/// </summary>
 	public interface IReferenceManager
 	{
-		public	int getIdForObject(Object o);
-		public	Object getObjectForId(int id);
-		public	void free(int id;
+		int getIdForObject(Object o);
+		Object getObjectForId(int id);
+		void free(int id);
 	}
 }

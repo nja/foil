@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 
 namespace com.richhickey.foil
 {
@@ -7,5 +8,6 @@ namespace com.richhickey.foil
 	/// </summary>
 	public interface ICallable 
 	{
+		public	Object invoke(ArrayList args);
 	}
 }
