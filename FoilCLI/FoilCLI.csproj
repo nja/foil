@@ -89,6 +89,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "BaseMarshaller.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "IBaseMarshaller.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "ICallable.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -125,6 +135,21 @@
                 />
                 <File
                     RelPath = "ReferenceManager.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Reflector.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "RuntimeServer.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "UniversalMarshaller.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

@@ -27,14 +27,17 @@ namespace com.richhickey.foil
 		[STAThread]
 		static void Main(string[] args)
 		{
-			IReader rdr	= new MessageReader();
 			for(;;)
 			{
-			try
-				{
-				ArrayList al = rdr.readMessage(Console.In);
-				Console.WriteLine(al.ToString());
-				}
+			IReferenceManager referenceManager = new ReferenceManager();
+			BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
+			baseMarshaller.registerMarshaller(Type.GetType("System.Object"), new UniversalMarshaller());
+			IReader reader = new MessageReader(referenceManager);
+			IReflector reflector = new Reflector();
+			IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
+			try{
+		        server.processMessages(Console.In,Console.Out);
+	    	}
 			catch(Exception ex)
 			{
 				Console.WriteLine(ex.Message);

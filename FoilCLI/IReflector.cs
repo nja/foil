@@ -1,5 +1,6 @@
+using	System;
 /*
- * Created on Dec 7, 2004
+ * Created on Dec 8, 2004
  *
  *   Copyright (c) Rich Hickey. All rights reserved.
  *   The use and distribution terms for this software are covered by the
@@ -9,16 +10,17 @@
  * 	 the terms of this license.
  *   You must not remove this notice, or any other, from this software.
  */
-using System;
-using System.IO;
-
-namespace  com.richhickey.foil
+namespace com.richhickey.foil	
 {
-	/// <summary>
-	/// Summary description for IReflector.
-	/// </summary>
+
+	/**
+	 * @author Eric Thorsen
+	 *
+	 * TODO To change the template for this generated type comment go to
+	 * Window - Preferences - Java - Code Style - Code Templates
+	 */
 	public interface IReflector
 	{
-		void processMessages(TextReader ins,TextWriter outs);
+		ICallable getCallable(int memberType, Type	c, String memberName);
 	}
 }

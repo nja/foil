@@ -19,6 +19,6 @@ namespace  com.richhickey.foil
 	/// </summary>
 	public interface IMarshaller
 	{
-		void marshall(Object o,TextWriter w, IMarshaller baseMarshaller, int flags,int depth);
+		void marshall(Object o,TextWriter w, IBaseMarshaller baseMarshaller, int flags,int depth);
 	}
 }

@@ -18,6 +18,13 @@ namespace com.richhickey.foil
 {
 	public class MessageReader :IReader
 	{
+		IReferenceManager referenceManager;
+    
+		public	MessageReader(IReferenceManager referenceManager)
+		{
+			this.referenceManager = referenceManager;
+		}
+
 		public ArrayList readMessage(TextReader strm) 
 		{
 			return readSexpr(strm);
@@ -60,6 +67,9 @@ namespace com.richhickey.foil
 					case '"':
 						ret.Add(readString(strm));
 						break;
+					case '#':
+						ret.Add(readMacro(strm));
+						break;
 					default:
 						ret.Add(readToken(strm));
 						break;
@@ -99,7 +109,39 @@ namespace com.richhickey.foil
 			return sb.ToString();
 		}
 
-		protected String readToken(TextReader strm) 
+		Object readMacro(TextReader strm)
+			{
+			int c = strm.Read();
+			if (c != '#')
+				throw new IOException("expected macro to begin with '#'");
+			c = strm.Peek();
+			if(c == '{')
+				{
+				return processMacroList(readDelimitedList(strm,'{','}'));
+				}
+			else if(c == '}')	// }id
+				{
+				strm.Read();
+				int id = Convert.ToInt32(readToken(strm));
+				return referenceManager.getObjectForId(id);
+				}
+			else if(c == '\\')
+				{
+				strm.Read();
+				c = strm.Read();
+				return Convert.ToChar(c);
+				}
+			else
+				throw new Exception("unsupported macro sequence");
+			}
+
+		Object processMacroList(ArrayList args)
+		{
+			//todo handle {:box ... and {:array ...
+			return null;
+		}
+
+		protected Object readToken(TextReader strm) 
 		{
 			StringBuilder sb	= new StringBuilder();
 			int	c	=	strm.Peek();
@@ -118,7 +160,34 @@ namespace com.richhickey.foil
 					sb.Append((char) strm.Read());
 			}
 			String ret = sb.ToString();
+			if(isInteger(ret))
+				return Convert.ToInt32(ret);
+			else if(shouldBeNumber(ret))
+				return Convert.ToDouble(ret);
+			else if(String.Compare(ret,"nil",true)==0)
+				return null;
+			else if(String.Compare(ret,"t",true)==0)
+				return true;
 			return ret;
+		}
+
+    	static Boolean isInteger(String s)
+		{
+			bool ret = true;
+			for(int i=0;ret && i<s.Length;++i)
+			{
+				if(i == 0)
+					ret = Char.IsDigit(s[i]) || s[i] == '-';
+				else
+					ret = Char.IsDigit(s[i]);
+			}
+			return ret;
+		}
+
+		static Boolean shouldBeNumber(String s)
+		{
+			char c = s[0];
+			return Char.IsDigit(c) || c == '.' || c == '-';
 		}
 	}
 }
