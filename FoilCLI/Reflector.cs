@@ -95,15 +95,17 @@ namespace  com.richhickey.foil
 			}
 		}
 
-		static	public	Type[]	getParameterTypes(ParameterInfo[] parameters)
+	static	public	Type[]	getParameterTypes(ParameterInfo[] parameters)
 		{
+			if(parameters==null||parameters.Length==0)
+				return	null;
 			Type[]	types	=	new Type[parameters.Length];
 			for(Int32 i=0;i<parameters.Length;++i)
 				types[i]	=	parameters[i].ParameterType;
 			return	types;
 		}
 
-		static Object[] boxArgs(ParameterInfo[] parameters,ArrayList args)
+	static Object[] boxArgs(ParameterInfo[] parameters,ArrayList args)
 		{
 			if(parameters.Length == 0)
 				return null;
@@ -117,7 +119,7 @@ namespace  com.richhickey.foil
 			return ret;
 		}
     
-		static Object boxArg(Type paramType,Object arg)
+	static Object boxArg(Type paramType,Object arg)
 		{
 			if(paramType == Type.GetType("System.Boolean") && arg == null)
 				return false;
@@ -125,7 +127,7 @@ namespace  com.richhickey.foil
 				return arg;
 		}
     
-		static Boolean isCongruent(ParameterInfo[] parameters,ArrayList args)
+	static Boolean isCongruent(ParameterInfo[] parameters,ArrayList args)
 		{
 			Boolean ret = false;
 			if(parameters.Length == (args==null?0:args.Count))
@@ -153,7 +155,7 @@ namespace  com.richhickey.foil
 			return ret;
 		}
     
-		public ICallable getCallable(int memberType, Type c, String memberName)
+	public ICallable getCallable(int memberType, Type c, String memberName)
 		{
 			switch(memberType)
 			{
@@ -171,7 +173,7 @@ namespace  com.richhickey.foil
 		}
 
       
-		ICallable getMethod(Type c,String method)
+	ICallable getMethod(Type c,String method)
 		{
 			MethodInfo[] allmethods = c.GetMethods();
 			ArrayList methods 		= new ArrayList();
@@ -185,7 +187,7 @@ namespace  com.richhickey.foil
 			return new CallableMethod(methods);
 		}
 
-		ICallable getField(Type c,String field)
+	ICallable getField(Type c,String field)
 			{
 				FieldInfo[] allfields = c.GetFields();
 				for(int i=0;i<allfields.Length;i++)
@@ -196,7 +198,7 @@ namespace  com.richhickey.foil
 			throw new Exception("no field found");
 			}
  
-		ICallable getPropertyGetter(Type c,String property)
+	ICallable getPropertyGetter(Type c,String property)
         {
         PropertyInfo[] props = c.GetProperties();
         ArrayList methods = new ArrayList();
@@ -247,7 +249,7 @@ namespace  com.richhickey.foil
         }
 
    
-	 public void members(Type c, TextWriter w)
+	public void members(Type c, TextWriter w)
 	 {
         w.Write(" (");
         
@@ -491,7 +493,7 @@ namespace  com.richhickey.foil
         throw new Exception("can't find property");
 	    }
 
-		public	Object		indexerGet(Object o,ArrayList indexes) 
+	public	Object		indexerGet(Object o,ArrayList indexes) 
 		{
 			PropertyInfo prop = o.GetType().GetProperty("Item",BindingFlags.Instance|BindingFlags.Public);
 			if(prop!=null)
@@ -508,12 +510,12 @@ namespace  com.richhickey.foil
 			throw new Exception(String.Format("Can't find indexer property \"Item\" for type {0}.",o.GetType()));
 		}
 
-		/// <summary>
+	/// <summary>
 		/// Eric Thorsen - Assumes the last element in 'indexes' is the value to be assigned.
 		/// </summary>
 		/// <param name="o"></param>
 		/// <param name="indexes"></param>
-		public	void		indexerSet(Object o,ArrayList indexes)
+	public	void		indexerSet(Object o,ArrayList indexes)
 		{
 			PropertyInfo prop = o.GetType().GetProperty("Item",BindingFlags.Instance|BindingFlags.Public);
 			if(prop!=null)
@@ -559,14 +561,14 @@ namespace  com.richhickey.foil
             supers[p]	=	((Type)supers[p]).ToString();
 		return	supers;
 	 }
-		static ProxyHandler handler;
-		public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, ArrayList interfaceList) 
+	static ProxyHandler handler;
+	public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, ArrayList interfaceList) 
 		{
 		Type[] interfaces = new Type[interfaceList.Count];
 		for(int i=0;i<interfaces.Length;i++)
 			interfaces[i] = RuntimeServer.typeArg(interfaceList[i]);
 		handler	=	new ProxyHandler(runtime,marshallFlags,marshallDepth);
-        return Proxy.BuildProxy(new Proxy.InvocationHandler(handler.invoke),interfaces);
+        return Proxy.BuildProxy(new Proxy.InvocationDelegate(handler.invoke),interfaces);
 		}
 	}
 }

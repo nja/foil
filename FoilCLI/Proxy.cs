@@ -13,7 +13,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using System.Reflection.Emit;
-//using System.Math;
+using System.Text;
 /**
  * @author Eric Thorsen
  *
@@ -21,23 +21,182 @@ using System.Reflection.Emit;
 namespace com.richhickey.foil
 {
 	/// <summary>
-	/// Summary description for Proxy.
+	/// The proxy class implements 1 or more interfaces and forwards all calls to a delegate or
+	/// a class that implements the Proxy.IInvocationHanlder interface.  Only 1 class per
+	/// unique set of interfaces is created.  The interfaces implemented will be an intersection
+	/// of all interfaces found hierarchically.  Instances are bound to the passed delegate or 
+	/// IInvocationHandler implementation.  The data object field is to allow storing any
+	/// arbritrary data.
 	/// </summary>
 	public class Proxy
 	{
-		static	Random	rand	=	new Random((int)DateTime.Now.Ticks);
+		/// <summary>
+		/// Derive from this and implement the Invoke method or use the delegate below which 
+		/// has the same signature.
+		/// </summary>
+		public	interface	IInvocationHandler	
+		{
+			/// <summary>
+			/// All functions and property setter/getter funtions get forwared to this call.
+			/// </summary>
+			/// <param name="proxy">The Proxy instance that was created.</param>
+			/// <param name="method">MethodInfo of the function called.</param>
+			/// <param name="args">zero or more arguments passed to the function</param>
+			/// <returns></returns>
+			Object	Invoke(		Object			proxy
+							,	MethodInfo		method
+							,	Object[]		args);
 
-		public	delegate Object		InvocationHandler(		Object			proxy
+		};
+		/// <summary>
+		/// All functions and property setter/getter funtions get forwared to this call.
+		/// </summary>
+		/// <param name="proxy">The Proxy instance that was created.</param>
+		/// <param name="method">MethodInfo of the function called.</param>
+		/// <param name="args">zero or more arguments passed to the function</param>
+		/// <returns></returns>
+		public	delegate Object		InvocationDelegate(		Object			proxy
 														,	MethodInfo		method
 														,	Object[]		args);
+		/// <summary>
+		/// The delegate where all calls get forwarded.
+		/// </summary>
+		protected	InvocationDelegate	_invocationDelegate;
+		/// <summary>
+		/// When an implementation of a IInvocationHandleris passed in a Proxy.InvocationDelegate
+		/// is created bound to the implementations Invoke function.  This enables avoiding any
+		/// branching logic required in the emitted code.  This member allows the callee to have
+		/// access to the implementation instance via the Proxy object passed in the Invoke call.
+		/// </summary>
+		protected	IInvocationHandler	_iInvocationHandler;
+		/// <summary>
+		/// In case the user wants to store any data in the proxy.
+		/// </summary>
+        public		Object				data;	// opaque data
+		// For creating unique names.
+		static	Random		rand			=	new Random((int)DateTime.Now.Ticks);
+		// For the class cache.
+		static	Hashtable	metadataCache	=	new Hashtable();
+		/// <summary>
+		/// Properties for the callbacks.  If an implementation of IInvocationHandler
+		/// is used it is bound to an InvocationDelegate.
+		/// </summary>
+		public	InvocationDelegate invocationDelegate
+		{
+			get { return	_invocationDelegate;	}
+			set	{	_invocationDelegate	=	value;	}
+		}
 
-		static	public Object BuildProxy(InvocationHandler invocationHandler,params Type[]	interfaces)
+		public	IInvocationHandler iInvocationHandler
+		{
+			get { return	_iInvocationHandler;	}
+			set	{	_iInvocationHandler	=	value;	
+					this._invocationDelegate	=	new InvocationDelegate(this._iInvocationHandler.Invoke);
+				}
+		}
+		/// <summary>
+		/// There are 4 flavors for creating Proxies.  All take a set of interface types to implement.
+		/// They can be instantiated with a delegate or an interface implementation 
+		/// or with and without instance data.
+		/// </summary>
+		/// <param name="invocationHandler"></param>
+		/// <param name="interfaces"></param>
+		/// <returns></returns>
+		static	public Object BuildProxy(InvocationDelegate invocationHandler,params Type[]	interfaces)
 		{
 			if(interfaces.Length==0)
 				throw new ArgumentOutOfRangeException("interfaces must contain at least 1 interface type");
-			return	createInstance(invocationHandler,recurseInterfaces(interfaces));
+			return	BuildProxy(invocationHandler,null,recurseInterfaces(interfaces));
 		}
 
+		static	public Object BuildProxy(IInvocationHandler _iInvocationHandler,params Type[]	interfaces)
+		{
+			if(interfaces.Length==0)
+				throw new ArgumentOutOfRangeException("interfaces must contain at least 1 interface type");
+			return	BuildProxy(new InvocationDelegate(_iInvocationHandler.Invoke),null,recurseInterfaces(interfaces));
+		}
+
+		static	public Object BuildProxy(InvocationDelegate invocationHandler,Object data,params Type[]	interfaces)
+		{
+			if(interfaces.Length==0)
+				throw new ArgumentOutOfRangeException("interfaces must contain at least 1 interface type");
+			return	createInstance(invocationHandler,data,recurseInterfaces(interfaces));
+		}
+
+		static	public Object BuildProxy(IInvocationHandler _iInvocationHandler,Object data,params Type[]	interfaces)
+		{
+			if(interfaces.Length==0)
+				throw new ArgumentOutOfRangeException("interfaces must contain at least 1 interface type");
+			Proxy	p				=	createInstance(new InvocationDelegate(_iInvocationHandler.Invoke),data,recurseInterfaces(interfaces));
+			p._iInvocationHandler	=	_iInvocationHandler;
+			return	p;
+		}
+		/// <summary>
+		/// Creates an instance of a class.  The class type is determined by the set of interfaces passed.
+		/// For each set passed there is 1 type created.  All instances are then created from the same type.
+		/// </summary>
+		/// <param name="invoker">delegate for the callback on any function or property setter/getter</param>
+		/// <param name="data">any data the user wishes to store in the proxy instance</param>
+		/// <param name="interfaces">set of interfaces to implement</param>
+		/// <returns>an instance of the proxy with the bound callback and data</returns>
+		static internal	Proxy	createInstance(InvocationDelegate invoker,Object data,Type[] interfaces)
+		{
+			Type	newType				=	getClassFor(interfaces);
+			Proxy	proxy				=	(Proxy)Activator.CreateInstance(newType,true);
+			proxy._invocationDelegate	=	invoker;
+			proxy.data					=	data;
+			return	proxy;
+		}
+
+		/// <summary>
+		/// Handles getting a proxy type from the cache or creating it.
+		/// </summary>
+		/// <param name="interfaces">interfaces to implement</param>
+		/// <returns>Type for the proxy</returns>
+		static	internal	Type	getClassFor(Type[] interfaces)
+		{
+
+			String	k		=	buildHashString(interfaces);
+			Object	newType	=	metadataCache[k];
+			if(newType!=null)
+				return	(Type)newType;
+			AppDomain appDomain = AppDomain.CurrentDomain;
+			AssemblyName assemblyName = new AssemblyName();
+			assemblyName.Name	= "_Dymamic__PROXY_TT_";
+			AssemblyBuilder assemblyBuilder = appDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+			ModuleBuilder	moduleBuilder	= assemblyBuilder.DefineDynamicModule("_TT_DymanicModule_");
+
+			TypeBuilder builder	= moduleBuilder.DefineType(		String.Format("TTProxy{0}.{1}",rand.Next(),interfaces[0])
+															,	TypeAttributes.Public
+															,	typeof(Proxy)
+															,	interfaces
+															);
+			Type	proxyType	=	typeof(Proxy);
+			FieldInfo	fb		=	proxyType.GetField("_invocationDelegate",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+			foreach(Type t in interfaces)
+			{
+				Hashtable	properties	=	new Hashtable();
+				// Now define the properties of any given interface.
+				foreach(PropertyInfo pi in t.GetProperties(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public))
+				{
+					Type[]	args		=	Reflector.getParameterTypes(pi.GetIndexParameters());
+					PropertyBuilder	pb	=	builder.DefineProperty(pi.Name,pi.Attributes,pi.PropertyType,args);
+					properties[pb.Name]	=	pb;
+				}
+				foreach(MethodInfo m in t.GetMethods(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public))
+					Implementor.ImplementMethod(t,m,builder,fb,properties);
+			}
+			newType				=	builder.CreateType();
+			metadataCache[k]	=	newType;
+			return	(Type)newType;
+		}
+
+		/// <summary>
+		/// In case there are multiple references to the same interface due to inheritance
+		/// flatten out the list.
+		/// </summary>
+		/// <param name="interfaces">List of interfaces</param>
+		/// <returns>The uniqiue set of all interfaces in the hierarchy</returns>
 		static	internal	Type[]	recurseInterfaces(Type[] interfaces)
 		{
 			Hashtable	ht	=	new Hashtable();
@@ -58,34 +217,21 @@ namespace com.richhickey.foil
 				return;
 			doRecurseInterfaces(list,intface.BaseType);
 		}
- 
-		static internal	Object	createInstance(InvocationHandler invoker,Type[] interfaces)
-		{
-			AppDomain appDomain = AppDomain.CurrentDomain;
-			AssemblyName assemblyName = new AssemblyName();
-			assemblyName.Name	= "_Dymamic__PROXY_TT_";
-			AssemblyBuilder assemblyBuilder = appDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-			ModuleBuilder	moduleBuilder	= assemblyBuilder.DefineDynamicModule("_TT_DymanicModule_");
-			// Need to do a better job coming up with unique names
-			TypeBuilder builder	= moduleBuilder.DefineType(		String.Format("TTProxy{0}.{1}",rand.Next(),interfaces[0])
-															,	TypeAttributes.Public
-															,	null
-															,	interfaces
-															);
-			// I would have thought that the derivation would have taken care of this for me?
-			FieldBuilder	fb	=	builder.DefineField("invocationHandler",typeof(Proxy.InvocationHandler),FieldAttributes.Public);
-			foreach(Type t in interfaces)
-			{
-				foreach(MethodInfo m in t.GetMethods(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public))
-					Implementor.ImplementMethod(t,m,builder,fb);
-			}
 
-			Type	newType			=	builder.CreateType();
-			Object	proxy			=	Activator.CreateInstance(newType,true);
-			FieldInfo[]	flds		=	newType.GetFields(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
-			FieldInfo invokerFld	=	newType.GetField("invocationHandler",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
-			invokerFld.SetValue(proxy, invoker);
-			return	proxy;
+		static	internal String buildHashString(Type[] interfaces)
+		{
+			Array.Sort(interfaces,new CompTypes());
+			StringBuilder	sb	=	new StringBuilder();
+			foreach(Type t in interfaces)
+				sb.Append(t.ToString());
+			return	sb.ToString();
+		}
+		class CompTypes:IComparer
+		{
+			public	
+				int Compare(object x,object y)
+			{	return	String.Compare(x.ToString(),y.ToString());	}
+                
 		}
 	}
 }

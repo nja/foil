@@ -13,10 +13,18 @@
  */
 using System;
 using System.IO;
+using System.Text;
 using System.Collections;
 using System.Reflection;
 using System.Net;
 using System.Net.Sockets;
+using System.Data.SqlClient;
+// These may need to reside in a separate init file?
+using System.Windows.Forms;
+using System.Drawing;
+using System.ComponentModel;
+using System.Configuration;
+
 /**
  * @author Eric Thorsen
  *
@@ -30,6 +38,11 @@ namespace com.richhickey.foil
 	public class RuntimeServer:IRuntimeServer
 	{
 		    
+		static	System.Drawing.Region	r						=	null;
+		static	System.Windows.Forms.Form	f					=	null;
+		static	System.ComponentModel.AmbientValueAttribute	a	=	null;
+		static	System.Configuration.AppSettingsReader	ar		=	null;
+
     IReader				reader;
     IBaseMarshaller		marshaller;
     IReferenceManager	referenceManager;
@@ -59,220 +72,226 @@ namespace com.richhickey.foil
      */
 public Object processMessages(TextReader ins,TextWriter outs) 
 	{
+	lock(this)
+	{
+		proxyReader	=	ins;
+		proxyWriter	=	outs;
 
-	proxyReader	=	ins;
-	proxyWriter	=	outs;
-
-	for(;;)
+		for(;;)
 		{
-	    String	resultMessage	=	null;
-		String	sin				=	null;
-		ArrayList message		=	null;
-		try{
-			sin			=	slurpForm(ins);
-			message		=	reader.readMessage(new StringReader(sin));
-			if(isMessage(":call",message))
-			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
-			    {
-				ICallable c = (ICallable)message[1];
-				int marshallFlags = intArg(message[2]);
-				int marshallDepth = intArg(message[3]);
-				Object ret = c.invoke(message[4],message.GetRange(5,message.Count-5));
-				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
-			    }
-			else if(isMessage(":cref",message))
-			    //(:cref member-type tref|"packageQualifiedTypeName" "memberName")
-			    {
-			    int memberType = intArg(message[1]);
-			    Type c = typeArg(message[2]);
-			    String memberName = stringArg(message[3]);
-			    ICallable ret = reflector.getCallable(memberType,c,memberName);
-				resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
-			    }
-			else if(isMessage(":new",message))
-				//(:new tref marshall-flags marshall-value-depth-limit (args ...) property-inits ...)
-			    {
-			    Type c = typeArg(message[1]);
-				int marshallFlags = intArg(message[2]);
-				int marshallDepth = intArg(message[3]);
-				ArrayList args = (ArrayList)message[4];
-			    Object ret = reflector.createNew(c,args);
-			    //set props
-			    if(message.Count>5)
-			        {
-			        reflector.setProps(ret,message.GetRange(5,message.Count-5));
-			        }
-				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
-			    }
-			else if(isMessage(":tref",message))
-			    //(:tref "packageQualifiedTypeName")
-			    {
-			    Type c = Type.GetType((String)message[1]);
-				 resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
-			    }
-			else if(isMessage(":free",message))
-			    //(:free refid ...)
-			    {
-			    for(int i=1;i<message.Count;i++)
-			        {
-					Object	id	=	message[i++];
-			        int rev 	= 	intArg(message[i]);
-			        referenceManager.free(id,rev);
-			        }
-				resultMessage = createRetString(null,marshaller,0,0);
-			    }
-			else if(isMessage(":ret",message))
-				//only on callback, note will break out of message loop
+			String	resultMessage	=	null;
+			String	sin				=	null;
+			ArrayList message		=	null;
+			try
+			{
+				sin			=	slurpForm(ins);
+				message		=	reader.readMessage(new StringReader(sin));
+				if(isMessage(":call",message))
+					//(:call cref marshall-flags marshall-value-depth-limit args ...)
 				{
-				return	message[1];
+					ICallable c = (ICallable)message[1];
+					int marshallFlags = intArg(message[2]);
+					int marshallDepth = intArg(message[3]);
+					Object ret = c.invoke(message[4],message.GetRange(5,message.Count-5));
+					resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
 				}
-			else if(isMessage(":str",message))
-			    //(:str refid)
-			    {
-				resultMessage = createRetString(message[1].ToString(),marshaller,0,0);
-			    }
-			else if(isMessage(":equals",message))
-			    //(:equals ref1 ref2)
-			    {
-			    Object o1 = message[1];
-			    Object o2 = message[2];
-			    Boolean ret = (o1 == null) ? (o2 == null) : o1.Equals(o2);
-				resultMessage = createRetString(ret?true:false,marshaller,0,0);
-			    }
-			else if(isMessage(":vector",message))
-			    {
-			    //(:vector tref|"packageQualifiedTypeName" length value ...)			    {
-			    Type c = typeArg(message[1]);
-				int length = intArg(message[2]);
-				Object ret = reflector.createVector(c
-													,length
-													,message.GetRange(3,message.Count-3)
-													);
-				resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
-			    }
-			else if(isMessage(":vget",message))
-			    //(:vget aref marshall-flags marshall-value-depth-limit index)
-			    {
-				int marshallFlags	= intArg(message[2]);
-				int marshallDepth	= intArg(message[3]);
-				int index			= intArg(message[4]);
-				Object ret			= reflector.vectorGet(message[1],index);
-				resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
-			    }
-			else if(isMessage(":vset",message))
-			    //(:vset aref index value)
-			    {
-				int index = intArg(message[2]);
-				reflector.vectorSet(message[1],index,message[3]);
-				resultMessage = createRetString(null,marshaller,0,0);
-			    }
-			//Eric - For .net indexers
-			else if(isMessage(":iget",message))
-			//(:iget indexable-object-ref marshall-flags marshall-value-depth-limit indexes...)
-			{
-				int marshallFlags	= intArg(message[2]);
-				int marshallDepth	= intArg(message[3]);
-				Object ret			= reflector.indexerGet(message[1],message.GetRange(4,message.Count-4));
-				resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
-			}
-			else if(isMessage(":iset",message))
-			//(:iset indexable-object-ref indexes... value)
-			{
-				reflector.indexerSet(message[1],message.GetRange(2,message.Count-2));
-				resultMessage = createRetString(null,marshaller,0,0);
-			}
-			else if(isMessage(":vlen",message))
-			    //(:vlen aref)
-			    {
-				Object ret = reflector.vectorLength(message[1]);
-				resultMessage = createRetString(ret,marshaller,0,0);
-			    }
-			else if(isMessage(":bases",message))
-			    //(:bases tref|"packageQualifiedTypeName")
-			    {
-			    Type c = typeArg(message[1]);
-				StringWriter sw = new StringWriter();
-				sw.Write("(:ret");
-				marshaller.marshallAsList(reflector.bases(c),sw,IBaseMarshallerFlags.MARSHALL_ID,1);
-				sw.Write(')');
-				resultMessage = sw.ToString(); 
-			    }
-			else if(isMessage(":type-of",message))
-			    //(:type-of ref)
-			    {
-			    Type c = message[1].GetType();
-				resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
-			    }
-			else if(isMessage(":is-a",message))
-			    //(:is-a ref tref|"packageQualifiedTypeName")
-			    {
-			    Object o = message[1];
-			    Type c = typeArg(message[2]);
-				resultMessage = createRetString(c.IsInstanceOfType(o)?true:false,marshaller,0,0);
-			    }
-			else if(isMessage(":hash",message))
-			    //(:hash refid)
-			    {
-				resultMessage = createRetString(message[1].GetHashCode(),marshaller,0,0);
-			    }
-			else if(isMessage(":members",message))
-				//(:members :tref|"packageQualifiedTypeName")
-			{
-				Type c = typeArg(message[1]);
-				StringWriter sw = new StringWriter();
-				sw.Write("(:ret");
-				reflector.members(c,sw);
-				sw.Write(')');
-				resultMessage = sw.ToString(); 
-			}
-			else if(isMessage(":marshall",message))
-				//(:marshall ref marshall-flags marshall-value-depth-limit)
-			{
-				Object ret = message[1];
-				int marshallFlags = intArg(message[2]);
-				int marshallDepth = intArg(message[3]);
-				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
-			}
-			else if(isMessage(":proxy",message))
-			//(:proxy marshall-flags marshall-value-depth-limit interface-trefs ...)
+				else if(isMessage(":cref",message))
+					//(:cref member-type tref|"packageQualifiedTypeName" "memberName")
 				{
-				int marshallFlags = intArg(message[1]);
-				int marshallDepth = intArg(message[2]);
-				resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
-																	message.GetRange(3,message.Count-3)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+					int memberType = intArg(message[1]);
+					Type c = typeArg(message[2]);
+					String memberName = stringArg(message[3]);
+					ICallable ret = reflector.getCallable(memberType,c,memberName);
+					resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
 				}
-			else
+				else if(isMessage(":new",message))
+					//(:new tref marshall-flags marshall-value-depth-limit (args ...) property-inits ...)
+				{
+					Type c = typeArg(message[1]);
+					int marshallFlags = intArg(message[2]);
+					int marshallDepth = intArg(message[3]);
+					ArrayList args = (ArrayList)message[4];
+					Object ret = reflector.createNew(c,args);
+					//set props
+					if(message.Count>5)
+					{
+						reflector.setProps(ret,message.GetRange(5,message.Count-5));
+					}
+					resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				}
+				else if(isMessage(":tref",message))
+					//(:tref "packageQualifiedTypeName")
+				{
+					Type c =typeArg(message[1]);
+					resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
+				}
+				else if(isMessage(":free",message))
+					//(:free refid ...)
+				{
+					for(int i=1;i<message.Count;i++)
+					{
+						Object	id	=	message[i++];
+						int rev 	= 	intArg(message[i]);
+						referenceManager.free(id,rev);
+					}
+					resultMessage = createRetString(null,marshaller,0,0);
+				}
+				else if(isMessage(":ret",message))
+					//only on callback, note will break out of message loop
+				{
+					return	message[1];
+				}
+				else if(isMessage(":str",message))
+					//(:str refid)
+				{
+					resultMessage = createRetString(message[1].ToString(),marshaller,0,0);
+				}
+				else if(isMessage(":equals",message))
+					//(:equals ref1 ref2)
+				{
+					Object o1 = message[1];
+					Object o2 = message[2];
+					Boolean ret = (o1 == null) ? (o2 == null) : o1.Equals(o2);
+					resultMessage = createRetString(ret?true:false,marshaller,0,0);
+				}
+				else if(isMessage(":vector",message))
+				{
+					//(:vector tref|"packageQualifiedTypeName" length value ...)			    {
+					Type c = typeArg(message[1]);
+					int length = intArg(message[2]);
+					Object ret = reflector.createVector(c
+						,length
+						,message.GetRange(3,message.Count-3)
+						);
+					resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+				}
+				else if(isMessage(":vget",message))
+					//(:vget aref marshall-flags marshall-value-depth-limit index)
+				{
+					int marshallFlags	= intArg(message[2]);
+					int marshallDepth	= intArg(message[3]);
+					int index			= intArg(message[4]);
+					Object ret			= reflector.vectorGet(message[1],index);
+					resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				}
+				else if(isMessage(":vset",message))
+					//(:vset aref index value)
+				{
+					int index = intArg(message[2]);
+					reflector.vectorSet(message[1],index,message[3]);
+					resultMessage = createRetString(null,marshaller,0,0);
+				}
+					//Eric - For .net indexers
+				else if(isMessage(":iget",message))
+					//(:iget indexable-object-ref marshall-flags marshall-value-depth-limit indexes...)
+				{
+					int marshallFlags	= intArg(message[2]);
+					int marshallDepth	= intArg(message[3]);
+					Object ret			= reflector.indexerGet(message[1],message.GetRange(4,message.Count-4));
+					resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				}
+				else if(isMessage(":iset",message))
+					//(:iset indexable-object-ref indexes... value)
+				{
+					reflector.indexerSet(message[1],message.GetRange(2,message.Count-2));
+					resultMessage = createRetString(null,marshaller,0,0);
+				}
+				else if(isMessage(":vlen",message))
+					//(:vlen aref)
+				{
+					Object ret = reflector.vectorLength(message[1]);
+					resultMessage = createRetString(ret,marshaller,0,0);
+				}
+				else if(isMessage(":bases",message))
+					//(:bases tref|"packageQualifiedTypeName")
+				{
+					Type c = typeArg(message[1]);
+					StringWriter sw = new StringWriter();
+					sw.Write("(:ret");
+					marshaller.marshallAsList(reflector.bases(c),sw,IBaseMarshallerFlags.MARSHALL_ID,1);
+					sw.Write(')');
+					resultMessage = sw.ToString(); 
+				}
+				else if(isMessage(":type-of",message))
+					//(:type-of ref)
+				{
+					Type c = message[1].GetType();
+					resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
+				}
+				else if(isMessage(":is-a",message))
+					//(:is-a ref tref|"packageQualifiedTypeName")
+				{
+					Object o = message[1];
+					Type c = typeArg(message[2]);
+					resultMessage = createRetString(c.IsInstanceOfType(o)?true:false,marshaller,0,0);
+				}
+				else if(isMessage(":hash",message))
+					//(:hash refid)
+				{
+					resultMessage = createRetString(message[1].GetHashCode(),marshaller,0,0);
+				}
+				else if(isMessage(":members",message))
+					//(:members :tref|"packageQualifiedTypeName")
+				{
+					Type c = typeArg(message[1]);
+					StringWriter sw = new StringWriter();
+					sw.Write("(:ret");
+					reflector.members(c,sw);
+					sw.Write(')');
+					resultMessage = sw.ToString(); 
+				}
+				else if(isMessage(":marshall",message))
+					//(:marshall ref marshall-flags marshall-value-depth-limit)
+				{
+					Object ret = message[1];
+					int marshallFlags = intArg(message[2]);
+					int marshallDepth = intArg(message[3]);
+					resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				}
+				else if(isMessage(":proxy",message))
+					//(:proxy marshall-flags marshall-value-depth-limit interface-trefs ...)
+				{
+					int marshallFlags = intArg(message[1]);
+					int marshallDepth = intArg(message[2]);
+					resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
+						message.GetRange(3,message.Count-3)),marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+				}
+				else
+				{
+					throw new Exception("unsupported message");
+				}
+			}
+			catch(Exception ex)
 			{
-				throw new Exception("unsupported message");
+				if(ex is IOException)
+					throw (IOException)ex;
+				else if(ex is TargetInvocationException )
+				{
+					while(ex.InnerException != null && ex is TargetInvocationException)
+						ex = ex.InnerException;
+				}
+				outs.Write("(:err");
+				StringBuilder sb	=	new StringBuilder();
+				sb.Append(ex.Message);
+				Exception	ie	=	ex.InnerException;
+				while(ie!=null)
+				{
+					sb.AppendFormat(" {0}",ie.Message);
+					ie	=	ie.InnerException;
+				}
+				marshaller.marshallAtom(sb.ToString(),outs,0,0);
+				marshaller.marshallAtom(String.Format("{0}{1}",sb.ToString(),ex.StackTrace),outs,0,0);
+				outs.Write(')');
+				outs.Flush();
+			}
+
+			if(resultMessage != null)
+			{
+				outs.Write(resultMessage);
+				outs.Flush();
 			}
 		}
-		catch(Exception ex)
-			{
-		    if(ex is IOException)
-		        throw (IOException)ex;
-			else if(ex is TargetInvocationException )
-		        {
-			    TargetInvocationException  ite = (TargetInvocationException)ex;
-			    ex = ite.InnerException;
-		        }
-			//Console.WriteLine(ex.ToString());
-			//Console.WriteLine(ex.StackTrace);
-
-		    outs.Write("(:err");
-			marshaller.marshallAtom(ex.ToString(),outs,0,0);
-			marshaller.marshallAtom(ex.StackTrace,outs,0,0);
-			outs.Write(')');
-			outs.Flush();
-			//ET See if this gets rid of the bogus error message on the lisp side.
-		//	String dontCare	=	ins.ReadToEnd();
-			}
-
-		if(resultMessage != null)
-		    {
-		    outs.Write(resultMessage);
-			outs.Flush();
-		    }
-		}
+	}
 	}
 
 	public Object proxyCall(int marshallFlags, int marshallDepth, MethodInfo method, Object proxy, Object[] args) 
@@ -286,13 +305,11 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		
 		String decl = method.DeclaringType.FullName;
 		StringWriter sw = new StringWriter();
-		int lastDotIdx = decl.LastIndexOf('.'); 
 		sw.Write("(:proxy-call |");
-		// Don't want the proxies genned name
 		int firstDotInx	=	decl.IndexOf('.');
-		sw.Write(decl.Substring(firstDotInx+1,lastDotIdx-firstDotInx-1));
+		sw.Write(decl.Substring(0,firstDotInx));
 		sw.Write("|::");
-		sw.Write(decl.Substring(lastDotIdx+1));
+		sw.Write(decl.Substring(firstDotInx+1));
 		sw.Write('.');
 		sw.Write(method.Name);
 		
@@ -420,7 +437,7 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				me.Start();
 				TcpClient	tcp		=	me.AcceptTcpClient();		
 				//s.setTcpNoDelay(true);
-				rs.processMessages(	new StreamReader(tcp.GetStream()),
+				 rs.processMessages(	new StreamReader(tcp.GetStream()),
 					new StreamWriter(tcp.GetStream()));
 			} 
 			catch(Exception exc)

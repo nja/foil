@@ -12,31 +12,50 @@ namespace com.richhickey.foil
 	public class Implementor
 	{
 
-		static	public	String	checkForPropertyFuncs(String methodName)
+		static	void	checkForPropertyFuncs(MethodBuilder	mb,Hashtable props)
 		{
-			if(methodName.StartsWith("get_"))
-				return	methodName.Replace("get_","");
-			if(methodName.StartsWith("set_"))
-				return	methodName.Replace("set_","");
-			return	methodName;
+			if(mb.Name.StartsWith("get_"))
+				((PropertyBuilder)props[mb.Name.Replace("get_","")]).SetGetMethod(mb);
+			if(mb.Name.StartsWith("set_"))
+				((PropertyBuilder)props[mb.Name.Replace("set_","")]).SetSetMethod(mb);
 		}
 
-		static	public	void	ImplementMethod(Type interfaceType,MethodInfo method,TypeBuilder typeBuilder,FieldInfo invoker)
+		// Not a good way to do this
+		static	bool	isPropertyFunc(String mb)
 		{
-			// Don't need to do these...
-			if(	method.Name=="Equals"
-				||method.Name=="ToString"
-				||method.Name=="Finalize")
-				return;
+			if(mb.StartsWith("get_")||mb.StartsWith("set_"))
+				return	true;
+			else
+				return	false;
+		}
+
+		
+		static	public	void	ImplementMethod(Type interfaceType,MethodInfo method,TypeBuilder typeBuilder,FieldInfo invoker,Hashtable	props)
+		{
 			Type[]	args	=	Reflector.getParameterTypes(method.GetParameters());
-			MethodBuilder methodBuilder 
-				= typeBuilder.DefineMethod(		method.Name
+			// Don't need to do these for Object
+			if(	(method.Name=="Equals"
+				||method.Name=="ToString"
+				||method.Name=="Finalize") && args.Length==0)
+				return;
+			MethodBuilder methodBuilder =null;
+			if(!isPropertyFunc(method.Name))
+				methodBuilder	=
+					typeBuilder.DefineMethod(	method.Name
 											,	MethodAttributes.Public | MethodAttributes.Virtual
+											,	method.ReturnType
+											,	args);
+			else
+				methodBuilder
+					= typeBuilder.DefineMethod(		method.Name
+											,	MethodAttributes.Public | MethodAttributes.Virtual
+												|MethodAttributes.HideBySig|MethodAttributes.NewSlot|MethodAttributes.SpecialName
 											,	method.ReturnType
 											,	args);
 			
 			// Forward all calls to the invocationHandler delegate
 			genDelegateCall(interfaceType,args,methodBuilder,invoker);
+			checkForPropertyFuncs(methodBuilder,props);//Bind functions to properties if applicable
 		}
 
 		static	public	void	genDelegateCall(	Type			interfaceType
@@ -45,61 +64,78 @@ namespace com.richhickey.foil
 													,FieldInfo		invoker)
 		{
 			ILGenerator	IL	=	methodBuilder.GetILGenerator();
-			
-			IL.DeclareLocal(typeof(object[]));
-			loadInt32(IL,parameters.Length);
-			IL.Emit(OpCodes.Newarr, typeof(object));
-			storeLocal(IL,0);
-
-			for(int i = 0; i < parameters.Length; i++) 
+			// Declare and initialize the array for passing the parameters.
+			IL.DeclareLocal(typeof(object[]));		//loc.0
+			IL.DeclareLocal(typeof(MethodInfo));	//loc.1
+			//If there is a return
+			if(methodBuilder.ReturnType!=typeof(void))
+				IL.DeclareLocal(methodBuilder.ReturnType);	//loc.2
+			// Init the args array
+			if(parameters==null)
 			{
-				loadLocal(IL,0);
-				putArgInArray(IL,i, parameters[i]);
+				IL.Emit(OpCodes.Ldnull);
+				storeLocal(IL,0);
 			}
-
-			IL.DeclareLocal(typeof(MethodInfo));
-			
-			IL.Emit(OpCodes.Ldtoken,methodBuilder);
+			else
+			{
+				loadInt32(IL,parameters.Length);
+				IL.Emit(OpCodes.Newarr, typeof(object));
+				storeLocal(IL,0);
+				// Store the parameters in the new array.
+				for(int i = 0; i < parameters.Length; i++) 
+				{
+					loadLocal(IL,0);//Load the array reference
+					putArgInArray(IL,i, parameters[i]);
+				}
+			}
+			// Store the methodinfo object using the Ldtoken command. Must use the interfaces MethodInfo.
+			MethodInfo	mi	=	parameters==null?interfaceType.GetMethod(methodBuilder.Name):interfaceType.GetMethod(methodBuilder.Name,parameters);
+			IL.Emit(OpCodes.Ldtoken,mi);
 			IL.Emit(OpCodes.Call, typeof(MethodBase).GetMethod("GetMethodFromHandle"));
 			storeLocal(IL,1);
-			
-			IL.Emit(OpCodes.Ldarg_0);
-			IL.Emit(OpCodes.Ldfld, invoker);//	The delegate
-			IL.Emit(OpCodes.Ldarg_0);		//	1st arg
-			loadLocal(IL,1);				//	2nd arg array
-			loadLocal(IL,0);				//	3rd arg array
-			IL.Emit(OpCodes.Callvirt,(typeof(Proxy.InvocationHandler).GetMethod("Invoke")));
+			// Setup the stack for the delegate call.
+			IL.Emit(OpCodes.Ldarg_0);		//	this needed for the load field opcode
+			IL.Emit(OpCodes.Ldfld, invoker);//	The delegate from the proxy
+			IL.Emit(OpCodes.Ldarg_0);		//	1st arg - Proxy (this)
+			loadLocal(IL,1);				//	2nd arg - MethodInfo 
+			loadLocal(IL,0);				//	3rd arg - array of arguments
+			IL.Emit(OpCodes.Callvirt,(typeof(Proxy.InvocationDelegate).GetMethod("Invoke")));
 			emitReturnFromMethod(IL, methodBuilder.ReturnType);
+			if(methodBuilder.ReturnType!=typeof(void))
+			{	// Not sure I need to so this but the C# compiler seems to generate this code?
+				storeLocal(IL,2);
+				loadLocal(IL,2);
+			}
+			IL.Emit(OpCodes.Ret);
 			}
 
 		// Helper functions for emitting MSIL
 		static	private void emitReturnFromMethod(ILGenerator IL, Type returnType)
 		{
 			if (returnType == typeof(void)) 
-				IL.Emit(OpCodes.Pop);
+				IL.Emit(OpCodes.Pop);//Don't care about the return value so remove it.
 			else
-			{
+			{	// Box if needed or just cast to the correct type.
 				if (returnType.IsValueType) 
 					unbox(IL,returnType);
 				else
 					IL.Emit(OpCodes.Castclass, returnType);
-			}
-			IL.Emit(OpCodes.Ret);
+			} //return
+			//IL.Emit(OpCodes.Ret);
 		}
 
 		static public void putArgInArray(ILGenerator IL,int index, Type arg)
 		{
-			loadInt32(IL,index);
-			IL.Emit(OpCodes.Ldarg_S, index);
+			loadInt32(IL,index);//Load index to assign into
+			IL.Emit(OpCodes.Ldarg_S,index+1);//Load the nth argument, skip this
 
 			if (arg.IsByRef)
-			{
-				arg = arg.GetElementType();
-				loadRef(IL,arg);
+			{	//If the arg is object, load by reference
+				loadRef(IL,arg.GetElementType());
 			}
 
 			if (arg.IsPrimitive || arg.IsValueType) 
-				IL.Emit(OpCodes.Box);
+				IL.Emit(OpCodes.Box,arg);
 
 			IL.Emit(OpCodes.Stelem_Ref);
 		}
