@@ -1,0 +1,356 @@
+<html>
+<body>
+<h1>Foil - a Foreign Object Interface for Lisp</h1>
+	<h5>Copyright (c) Rich Hickey and Eric Thorsen. All rights reserved.</h5>
+
+	<p>
+	The use and distribution terms for this software are covered by the <a href="http://opensource.org/licenses/cpl.php">Common 
+	Public License 1.0</a>, which can be found in the file CPL.TXT at the root of 
+	this distribution. By using this software in any fashion, you are agreeing to be 
+	bound by the terms of this license. You must not remove this notice, or any 
+	other, from this software.
+	</p>
+
+<h2>Description</h2>
+
+<h2>Protocol</h2>
+
+The foil protocol describes the on-stream interface between a Lisp instance and a runtime instance,
+and should not be confused with the foil library which provides the interface to the protocol for Common Lisp.
+
+<h3>Connection Services</h3> 
+
+Foil is a stream-based protocol.  However, no 
+protocol is provided for the establishment of the streams - that is an 
+implementation detail of the runtime and Lisp libraries.  It is suggested 
+that any foil runtime implementation provide at least a stand-alone 
+executable server that implements the protocol over its standard IO ports.  
+Many other scenarios are possible, including socket servers, pre-existing Lisp and runtime 
+instances discovering each other etc.  The remainder of the protocol 
+description presumes a bi-directional stream has been established.  
+
+Sendable messages:
+<ul>
+
+<li>	(:cref</li>
+	<li>(:call</li>
+	<li>(:free</li>
+	<li>(:marshall</li>
+	<li>(:hash</li>
+	<li>(:equals</li>
+	<li>(:type-of</li>
+	<li>(:is-a</li>
+	<li>(:str</li>
+	<li>(:tref</li>
+	<li>(:reflect</li>
+	<li>(:array</li>
+	<li>(:aget</li>
+	<li>(:aset</li>
+
+</ul>
+<p>Returnable messages:
+<ul>
+
+	<li>(:ret</li>
+	<li>(:err</li>
+	<li>(:call	;only from withing a :call</li>
+
+</ul>
+
+<h3>Invocation Services</h3>
+	Obtaining callable references (crefs)
+<p>	<code>(:cref ctype tref|"packageQualifiedTypeName" "memberName")</code>
+<p>		Where ctype is one of:
+<ul>		 
+			<li>:method</li>
+			 <li>:ctor</li>
+			 <li>:field-get</li>
+			 <li>:field-set</li>
+			 <li>:property-get</li>
+			 <li>:property-set</li>
+			 <li>:static-method</li>
+			 <li>:static-field-get</li>
+			 <li>:static-field-set</li>
+			 <li>:static-property-get</li>
+			 <li>:static-property-set</li>
+ </ul>
+<p>		Wherever a packageQualifiedTypeName is required, if the namespace/package is not included, 
+		package is presumed to be the base namespace of the runtime (i.e. java.lang or System)
+
+<p>		Note that both Java and the CLI support overloading, so a single member name might map to multiple overloads. 
+		The resolution of the overloading must occur in the runtime server at the time of invocation, i.e. any of the overloads
+		may be called through the same cref.
+
+<p>		Returns -> A reference to a callable thing is returned in the standard return format (see below).
+<p>		<code>(:ret #{:ref ...})</code>
+
+<p>	Calling a callable <br>
+			<code>(:call cref marshall-flags marshall-value-depth-limit args ...)</code><br>
+
+			Example:<br>
+				<code>(:call #}101 1 0 2 #}17 "fred")</code>
+
+<br>			Where cref is an cref that has been obtained via :cref, or, only in the case of calls to Lisp, 
+			a symbol that names a function.
+
+<br>			marshalling-flags is an integer representing a bitwise-or'ing of:
+<ul>
+
+<li>				marshall-id (1)</li>
+				<li>marshall-type (2)</li>
+				<li>marshall-hash (4)</li>
+
+</ul>
+			a marshall-value-depth-limit of 0 means no reference values are marshalled, a setting of 1 means 
+			that reference values will be marshalled for the return value (if it is a reference), but not any nested references. 
+			When > 1 nested reference types will marshall to that depth of nesting.
+
+<br>			num-args is the length of the remainder of the call list (may be 0)
+
+<br>			args are zero or more args as per below.
+
+<p>		Return Format
+<br>			one of:
+<ul>
+<li>			<code>(:ret value)</code><br>
+				All normal returns are packaged in a form as above, value is as per below. 
+				If a function has a void return type, nil should be returned. </li>
+			<li><code>(:call ...)</code><br>
+				A nested callback, in the call format above. The receiver should process the call, send back its return, then re-read
+				the stream for the return value of the original call.</li>
+			<li><code>(:err "error description" "stack trace")</code><br>
+				returned if an exception occurred while processing the request</li>
+
+</ul>
+		<h4>Argument and Return Values</h4>
+			Primitives and Value Types<br>
+			<ul>
+
+				<li>"Strings are in double quotes"</li>
+				<li>Numbers are unadorned decimal numbers with or without a decimal point</li>
+				<li>nil is null/false</li>
+				<li>t or non-nil is true</li>
+			</ul>
+					Note that the foreign runtime server is responsible for Common Lisp style boolean handling.
+				In addition, a string representation of a primitive/value-type is also acceptable, as long as there 
+				is a standard parsing function that will interpret it. This feature can be used to pass DateTimes to the CLR, 
+				for instance.
+
+			<p><h4>Boxed Primitives</h4>
+				Occasionally it may be necessary to provide a hint as to the intended type of an argument in order to force resolution
+				to a particular overload.
+
+				<p><code>#{:box "packageQualifiedTypeName" value}</code><br>
+
+				<p>Where typename is the name of the Object representation of a primitive/value type (Float/Single, Integer/Int32 etc)??
+                <p>Where typename is the keywordized name of the type in the native language of the runtime (C#/Java) i.e. :int :long :short :float etc.
+				<p>Return values should never be boxed??<br>
+
+			<p><h4>Array Literals</h4>
+				<code>#{:array "packageQualifiedTypeName" value ...}</code><br>
+
+			<p><h4>References</h4>
+
+				Reference types are returned with the following tagged syntax:<br>
+
+				<code>#{:ref :id an-int :type a-ref :hash an-int :data marshalled-value}</code>
+				<ul>
+
+
+				<li>:ref must be first, and at least one of :id or :data must be supplied, all others are optional</li>
+
+				<li>:id A unique integer reference that identifies the object. The object will be kept alive on the hosting side 
+					until it is freed. Multiple references to the same object will always have the same id. 
+					This will only be available if the marshall-id flag is set or when marshall-value-depth-limit is or reaches 0</li>
+
+				<li>:type A reference to the Type (CLI) or Class (Java) object that is the type of the object. Note that this may be the 
+					first time this reference is seen (and thus it must be registered for lifetime maintenance)
+					This will only be available if the marshall-type flag is set.</li>
+
+				<li>:hash An integer representing the hash value of the object. This will only be available if the marshall-hash flag is set.</li>
+
+				<li>:data A Lisp-readable representation of the value of the object. This will be obtained by using the marshaller 
+					registered for the type of the object. This will only be available when marshall-value-depth-limit is > 0. 
+					Note #{ and #} user-space read macros are used by the implementation of foil.</li>
+	
+
+				</ul>
+				 Note that it is possible to return marshalled values of reference objects without maintaining the reference object 
+				 on the hosting side (by clearing the marshall-id flag and having marshall-value-depth-limit > 0
+
+				 <p>A reference (obtained previously) is passed back to its host like this:
+
+				 <p><code>#}an-int-id</code>
+
+				 <p>The host will look up the object with that id and pass it along to the call.
+
+		<br><h4>Exception Reporting</h4>
+			All exceptions are reported via a return of the form:<p>
+			<code>(:err "error description" "stack trace")</code><p>
+				if an exception occurred while processing the request. Unless the exception originated in the reflection API, 
+				it is preferred that the stack trace be of the inner (reflection-invoked) call.
+
+<h3>Object support services</h3>
+		<h4>Object references</h4>
+		<h4>Object lifetime management</h4>
+			<code>(:free refid ...)</code> -> nil
+			
+
+			<p>Allows one or more refs to be GC-ed on the hosting side. It is an error to refer to these refids again.<br>
+
+        <h4>Object marshalling</h4><p>
+			It is anticipated that runtime servers will provide for user-installable marshallers, associted with types,
+			that will render the value of an object of that type on a stream in a form readable by Lisp. By default at least
+			the following marshallers should be provided:
+				<ul>
+
+				<li>Type|Class - should marshall the string representing the packageQualifiedTypeName</li>
+				<li>arrays - should marshall as simple vector literals: #(...)</li>
+				<li>default, if no other marshaller applies - should yield an assoc-list of property-name/value pairs</li>
+
+				</ul><p>
+			In addition to marshalling returns during calls, the value of an object reference can be explicitly marshalled:
+			<p><code>(:marshall depth ref)</code> -> Lisp-readable-value
+
+		<p>Hash values<br>
+			<code>(:hash ref)</code> -> int<br>
+
+		<p>Object equality<br>
+			<code>(:equals ref ref)</code> -> t|nil, per Object.Equals<br>
+
+		<p>ToString<br>
+			<code>(:str ref)</code> -> "string value"<br>
+
+ <p><h3>Reflection Services</h3>
+
+
+	Note, when trefs are returned by these reflection calls, the :data field of the reference is always (default) marshalled, 
+	i.e. set to the packageQualifiedTypeName as a string.
+
+	<p><h4>Obtaining a reference to a Type/Class object</h4>
+	<code>(:tref "packageQualifiedTypeName")</code> -> tref<br>
+
+	<p><h4>Object type</h4>
+		<code>(:type-of ref)</code> -> tref<br>
+
+
+	<p><code>(:is-a tref ref)</code> -> t|nil<br>
+
+	<p><code>(:reflect tref|"packageQualifiedTypeName")</code><br>
+
+	<code>
+<pre>
+(:ret ((:class tref)
+       (:bases tref ...) ;most-derived to least-derived
+       (:ctors ((:args tref ...)
+                (:ret tref ...)) ...)
+       (:methods (	(:mref mref)
+					(:name string)
+					(:sigs ((:args tref ...)
+                          (:ret tref ...)) ...)) ...)
+	(:fields (	(:name string)
+                (:type tref)) ...)
+	(:properties ((:name string)
+                      (:getsigs ((:args tref ...)
+                                 (:ret tref ...)) ...)
+                      (:setsigs ((:args tref ...)) ...)))
+	(:static-methods ((:name string)
+                          (:sigs ((:args tref ...)
+                                  (:ret tref ...)) ...)) ...)
+	(:static-fields ((:name string)
+                         (:type tref)) ...)
+	(:static-properties ((:name string)
+                             (:getsigs ((:args tref ...)
+                                        (:ret tref ...)) ...)
+                             (:setsigs ((:args tref ...)) ...)))))
+
+->(:ret ((:class tref)
+	(:bases tref ...) ;most-derived to least-derived
+	(:ctors ((:args tref ...)(:ret tref ...)) ...)
+	(:methods ((:name string) (:sigs ((:args tref ...)(:ret tref ...)) ...)) ...)
+	(:fields ((:name string) (:type tref)) ...)
+	(:properties ((:name string) (:getsigs ((:args tref ...)(:ret tref ...)) ...)
+								(:setsigs ((:args tref ...)) ...)))
+	(:static-methods ((:name string) (:sigs ((:args tref ...)(:ret tref ...)) ...)) ...)
+	(:static-fields ((:name string) (:type tref)) ...)
+	(:static-properties ((:name string) (:getsigs ((:args tref ...)(:ret tref ...)) ...)
+							(:setsigs ((:args tref ...)) ...)))))</pre></code>
+
+<h3>Arrays</h3>
+	Creating an array:<br>
+	<ul>
+
+	<li>(:array tref|"packageQualifiedTypeName" length value ...)
+		Creates an array of the specified type with the specified length. Initial values are optional 
+		and may be fewer than the length.
+		-> aref</li>
+	<li>(:aget aref marshall-flags marshall-value-depth-limit index)
+		-> value</li>
+	<li>(:aset aref index value)
+		-> nil</li>
+	</ul>
+
+<pre>
+Runtime Servers
+
+	Server
+		Takes Bidirectional stream
+		Read
+		Eval 
+			switch on car
+			:tref
+				lookup type by name, add ref, return
+			:cref - callables
+			:call - lookup
+						ref manager
+						invokes
+							Callable.Invoke
+			handle exceptions
+				respond with (:err ...)
+		Ret
+			call marshaller
+
+	Sexpr Reader
+		Parsed sexpr as arraylist
+		Turns everything into strings
+		Secial handling of 
+			#}reference
+				reference manager
+			#{:box type val}
+				handle in place
+					switch on :int etc
+			#{:array ...}
+				handle in place
+
+	Reference Manager
+		getIDForObject(Object)
+			see if in obj->id table
+			if not
+				inc id
+				put in obj->id and id->obj tables
+		free(id)
+			remove from both tables
+
+	Callables
+		Ctors
+		Fields
+		Properties
+		Methods
+
+	Marshaller
+		Handle primitives
+		Type-based dispatcher
+		Installable Marshallers
+
+	Reflector
+		Get typeinfo for type
+			right onto stream??
+			marshalls typerefs
+				explicit format
+</pre>
+
+
+
+
+</body>
+</html>
