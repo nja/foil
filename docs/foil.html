@@ -69,8 +69,6 @@ Sendable messages:
 			 <li>property-get (3)</li>
 			 <li>property-set (4)</li>
  </ul>
-<p>		Wherever a packageQualifiedTypeName is required, if the namespace/package is not included, 
-		package is presumed to be the base namespace of the runtime (i.e. java.lang or System)
 
 <p>		Note that both Java and the CLI support overloading, so a single member name might map to multiple overloads. 
 		The resolution of the overloading must occur in the runtime server at the time of invocation, i.e. any of the overloads
@@ -79,15 +77,16 @@ Sendable messages:
 <p>		Returns -> A reference to a callable thing is returned in the standard return format (see below).
 <p>		<code>(:ret #{:ref ...})</code>
 
+<p> <h4> Creating new object instances</h4>
 <p> 	<code>(:new tref marshall-flags marshall-value-depth-limit (args ...) property-inits ...)</code><br>
-
-<p>	Calling a callable <br>
+<p> where property-inits is a set of <code>:keyword-style-name value</code> pairs
+<p><h4>Calling a callable</h4>
 			<code>(:call cref marshall-flags marshall-value-depth-limit target args ...)</code><br>
 
-			Example:<br>
+<p>			Example:<p>
 				<code>(:call #}101 1 0 2 #}17 "fred")</code>
 
-<br>			Where cref is an cref that has been obtained via :cref, or, only in the case of calls to Lisp, 
+<p>			Where cref is an cref that has been obtained via :cref, or, only in the case of calls to Lisp, 
 			a symbol that names a function.
 
 <br>			marshalling-flags is an integer representing a bitwise-or'ing of:
@@ -106,7 +105,7 @@ Sendable messages:
 
 <br>			args are zero or more args as per below.
 
-<p>		Return Format
+<p>		<h4>Return Format</h4>
 <br>			one of:
 <ul>
 <li>			<code>(:ret value)</code><br>
@@ -124,13 +123,11 @@ Sendable messages:
 			<ul>
 
 				<li>"Strings are in double quotes"</li>
-				<li>Numbers are unadorned decimal numbers with or without a decimal point</li>
-				<li>nil is null/false</li>
+				<li>Numbers are unadorned decimal numbers with or without a decimal point,leading -, e etc</li>
+				<li>nil is null</li>
+				<li>nil is false</li>
 				<li>t is true</li>
 			</ul>
-				In addition, a string representation of a primitive/value-type is also acceptable, as long as there 
-				is a standard parsing function that will interpret it. This feature can be used to pass DateTimes to the CLR, 
-				for instance.
 
 			<p><h4>Boxed Primitives</h4>
 				Occasionally it may be necessary to provide a hint as to the intended type of a numeric argument in order to 
@@ -138,12 +135,13 @@ Sendable messages:
 
 				<p><code>#{:box typename value}</code><br>
 
-                <p>Where typename is one of :byte :int :long :short :float :double
-				<p>N.B. truncation may occur
-				<p>Return values should never be boxed??<br>
+                <p>Where typename is one of <code>:byte :int :long :short :float :double</code>
+				<p>N.B. silent truncation may occur
+				<p>Return values should never be boxed<br>
 
-			<p><h4>vector Literals</h4>
-				<code>#{:vector "packageQualifiedTypeName" value ...}</code><br>
+			<p><h4>vector literals</h4>
+			A vector can be specified in-line as an argument
+				<code>#{:vector "packageQualifiedTypeName"|tref|:int(etc) value ...}</code><br>
 
 			<p><h4>References</h4>
 
@@ -267,68 +265,6 @@ Sendable messages:
 	<li>(:vlen aref)
 		-> int</li>
 	</ul>
-
-<pre>
-Runtime Servers
-
-	Server
-		Takes Bidirectional stream
-		Read
-		Eval 
-			switch on car
-			:tref
-				lookup type by name, add ref, return
-			:cref - callables
-			:call - lookup
-						ref manager
-						invokes
-							Callable.Invoke
-			handle exceptions
-				respond with (:err ...)
-		Ret
-			call marshaller
-
-	Sexpr Reader
-		Parsed sexpr as arraylist
-		Turns everything into strings
-		Secial handling of 
-			#}reference
-				reference manager
-			#{:box type val}
-				handle in place
-					switch on :int etc
-			#{:array ...}
-				handle in place
-
-	Reference Manager
-		getIDForObject(Object)
-			see if in obj->id table
-			if not
-				inc id
-				put in obj->id and id->obj tables
-		free(id)
-			remove from both tables
-
-	Callables
-		Ctors
-		Fields
-		Properties
-		Methods
-
-	Marshaller
-		Handle primitives
-		Type-based dispatcher
-		Installable Marshallers
-
-	Reflector
-		Get typeinfo for type
-			right onto stream??
-			marshalls typerefs
-				explicit format
-</pre>
-
-
-
 
 </body>
 </html>
