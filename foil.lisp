@@ -410,8 +410,7 @@ The new macro expands into call to this"))
 (defmethod make-new ((full-class-name string) &rest args)
   (apply #'make-new (canonic-class-symbol full-class-name) args))
 
-
-(defmacro new (class-spec args &body body)
+#|
   "class-spec -> class-sym | (class-sym this-name)
 class-sym -> classname.
 args -> as per ctors and make-new
@@ -425,6 +424,9 @@ with
 If this-name is supplied it will be bound to the newly-allocated object and available
 to the body (note - but not to the args!)
 "
+|#
+
+(defmacro new (class-spec args &body body)
   (let ((class-sym (if (symbolp class-spec)
                        class-spec
                      (first class-spec)))
@@ -432,18 +434,20 @@ to the body (note - but not to the args!)
                   (second class-spec)
                 (gensym))))
     `(let ((,this (make-new ,class-sym ,@args)))
-       ,@(mapcar (lambda (form)
-                   (if (and (listp form)
-                            (symbolp (first form))
-                            (eql 0 (position #\. (symbol-name (first form)))))
-                       (list* (find-symbol (string-upcase (string-append
-                                                           (symbol-name class-sym)
-                                                           (subseq (symbol-name (first form)) 1)))
-                                           (symbol-package class-sym))
-                              this
-                              (rest form))
-                     form))
-                 body))))
+       (progn
+         ,@(mapcar (lambda (form)
+                     (if (and (listp form)
+                              (symbolp (first form))
+                              (eql 0 (position #\. (symbol-name (first form)))))
+                         (list* (find-symbol (string-upcase (string-append
+                                                             (symbol-name class-sym)
+                                                             (subseq (symbol-name (first form)) 1)))
+                                             (symbol-package class-sym))
+                                this
+                                (rest form))
+                       form))
+                   body))
+       ,this)))
 
 (defun call-ctor (class-sym args)
   (let ((class (find-class-ref class-sym))
