@@ -51,6 +51,9 @@
 					<a href="#vectors">Vectors</a>
 				</li>
 				<li>
+					<a href="#misc">Miscellaneous</a>
+				</li>
+				<li>
 					<a href="#proxies">Proxies and Callbacks</a>
 				</li>
 				<li>
@@ -109,25 +112,6 @@ manner that doesn't pollute the Lisp code on the consumer side.
 
 <h4>Foil provides all the facilities of jfli and more - </h4>
 
-<h5>Some of the additions are:</h5>
-
-<ul> 
-	<li>(Hopefully) Much improved portability (n.b. it has not been ported, but is mostly standard CL)
-	<li>Access to the CLR with the same API</li> 
-	<li>Support for CLR and JavaBean properties</li>
-	<li>Simultaneous access to multiple runtimes</li>
-	<li>Simultaneous access to the CLR and Java</li>
-	<li>A marshalling system which can, in a single call, pull across the types, hashcodes, and/or values of 
-reference objects to an arbitrary depth, with user customizable value marshallers.</li> 
-	<li>All references to the same remote object are <code>eq</code> on the Lisp side</li> 
-	<li><code>ensure-typed-ref</code>, which makes a remote reference 
-its most fully derived type in Lisp, works in place, using <code>change-class</code></li> 
-	<li>vector argument boxing, so lightweight vectors-as-arguments can be created in-place 
-		without the overhead of multiple calls to create and initialize the vector</li>
-	<li>keyword-style init of properties in constructor calls is supported by the ctor functions, and can be leveraged 
-		in apply and mapping scenarios (this feature was limited in jfli to the <code>new</code> macro)</li>
-</ul>
-
 
 <h5>Features of jfli that are retained/enhanced:</h5>
 
@@ -170,6 +154,25 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 			resolution etc.
 		</li>
 	</ul>
+<h5>Some of the additions are:</h5>
+
+<ul> 
+	<li>(Hopefully) Much improved portability (n.b. it has not been ported, but is mostly standard CL)
+	<li>Access to the CLR with the same API</li> 
+	<li>Support for CLR and JavaBean properties</li>
+	<li>Simultaneous access to multiple runtimes</li>
+	<li>Simultaneous access to the CLR and Java</li>
+	<li>A marshalling system which can, in a single call, pull across the types, hashcodes, and/or values of 
+reference objects to an arbitrary depth, with user customizable value marshallers.</li> 
+	<li>All references to the same remote object are <code>eq</code> on the Lisp side</li> 
+	<li><code>ensure-typed-ref</code>, which makes a remote reference 
+its most fully derived type in Lisp, works in place, using <code>change-class</code></li> 
+	<li>vector argument boxing, so lightweight vectors-as-arguments can be created in-place 
+		without the overhead of multiple calls to create and initialize the vector</li>
+	<li>keyword-style init of properties in constructor calls is supported by the ctor functions, and can be leveraged 
+		in apply and mapping scenarios (this feature was limited in jfli to the <code>new</code> macro)</li>
+</ul>
+
 
 
 	<a name="download"></a> <h3>Download and Communication</h3>
@@ -210,7 +213,7 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
    </p>
    <p>
    Foreign VMs maintain their own foreign reference pools, type caches etc, and objects from one VM cannot be passed to another, 
-   even if they are both Java or CLI. However, in multi-thread, multi-stream scenarios references are valid across threads in the same VM,
+   even if they are both Java or CLI. However, in multi-thread, multi-stream scenarios, references are valid across threads in the same VM,
    and the runtime server implementations are thread safe.
    </p>
    <p>
@@ -514,6 +517,13 @@ to the body (note - but not to the args!)
 (new shell. (*display* :text "SWT Apropos" :layout (gridlayout.new 1 t ))
                   (.setsize 800 600)
                   (.setlocation 100 100))            </pre>
+Expands into:
+<pre>
+(LET ((#:G2249 (MAKE-NEW SHELL. *DISPLAY* :TEXT "SWT Apropos" :LAYOUT (GRIDLAYOUT.NEW 1 T))))
+  (PROGN
+    (SHELL.SETSIZE #:G2249 800 600)
+    (SHELL.SETLOCATION #:G2249 100 100))
+  #:G2249)</pre>
 		</li>
     </ul>
 
@@ -593,9 +603,82 @@ to the body (note - but not to the args!)
         </li>
         </ul>
 
+<a name="misc"></a> <h3>Miscellaneous</h3> 
+        <h4>Arguments and Boxing</h4>
+<p>
+In most cases argument matching and conversion should be transparent. Lisp strings can be passed where Strings are required,
+Lisp numbers where int float etc are required. <code>t</code> and <code>nil</code> can be passed where booleans are required etc. 
+<code>nil</code> can be passed for <code>null</code>.
+Some Foil APIs (e.g. make-new-vector) require <code>type</code> arguments, and unless specified otherwise, 
+any of the following are acceptable:
+			<ul>
+				<li>
+					(the value of) A class-symbol - <code>classname.</code>
+				</li>
+				<li>
+					A primitive designator keyword - <code>:boolean|:byte|:char|:double|:float|:int|:long|:short</code>
+				</li>
+				<li>
+					A fref referring to an actual Class/Type instance
+				</li>
+				<li>
+					A <code>"package.qualified.ClassName"</code> string, case-sensitive. 
+                    This is least efficient and should only be used in dynamic scenarios.
+				</li>
+			</ul>
+Note that this only applies to Foil APIs, if a foreign runtime API takes a Class/Type argument, you must supply a 
+fref referring to an actual Class/Type instance.
+</p>
+<p>
+ Occasionally it may be necessary to provide a hint as to the intended type of a numeric argument in order to 
+				force resolution to a particular overload.
+        <li>
+            <strong>Function</strong> <code>(box type val)</code>
+            <p>
+            Type must be a primitive designator keyword - <code>:boolean|:byte|:char|:double|:float|:int|:long|:short</code>
+            <br>Produces an object that when passed to a Foil-generated function will be interpreted by the runtime as that type. 
+            Note that silent truncation may occur.
+            </p>
+        </li>
+</p>
+<p>
+ It is also possible to create vectors in-line as arguments, which will avoid multiple round-trips vs. 
+ calling <code>make-new-vector</code> in place. Note this is only good for ephemeral vectors, as there is no way to retain a 
+ reference to the newly-created vector.
+        <li>
+            <strong>Function</strong> <code>(box-vector type &rest vals)</code>
+            <p>
+            Produces an object that when passed to a Foil-generated function will be an array of type with the supplied values.
+            </p>
+        </li>
+Example:
+<pre>
+CL-USER 102 > (vref (box-vector string. "a" "b" "c" "d") 2) ;only one round-trip
+"c"</pre>
+</p>
+        <h4>Class/Type Helpers</h4>
+<ul>        
+    <li>
+            <strong>Function</strong> <code>(get-type-for-name full-class-name)</code>
+            <p>
+            Returns a Class/Type instance corresponding to name. Portable Class.forName/Type.GetType.
+            </p>
+        </li>
+    <li>
+            <strong>Function</strong> <code>(full-class-name class-symbol)</code>
+            <p>
+            Returns the package qualified name string corresponding to the class symbol:
+<pre>
+CL-USER 104 > (full-class-name string.)
+"java.lang.String"</pre>
+            </p>
+        </li>
+</ul>
+
         <a name="proxies"></a> <h3>Proxies and Callbacks</h3> 
         Proxies allow the creation of foreign objects that implement one or more interfaces (or a single delegate, in the case of CLI) 
-		in Lisp, and thus callbacks from the foreign VM to Lisp.
+		in Lisp, and thus callbacks from the foreign VM to Lisp. Foil supports Lisp calling foreign runtime calling Lisp... to an 
+        arbitrary (probably stack-limited) depth.
 <ul>
         <li>
             <strong>Generic Function</strong> <code>(handle-proxy-call method-symbol proxy &rest args))</code>
@@ -663,9 +746,9 @@ will be bound to the proxy instance in the body of the method implementations.
       Class or Types will always marshall the string representing the packageQualifiedTypeName, ignoring <code>*marshalling-depth*</code>
       <p>By default, the following marshalling will be performed when requested, i.e. <code>*marshalling-depth*</code> > 0</p>
       <ul>
-		<li>Arrays marshall as simple vectors</li>
-		<li>Collections and other enumerable entities marshall as simple lists</li>
-		<li>Default, if no other marshaller applies - an assoc-list of keywordized-property-name/value pairs for any public properties
+		<li>Arrays marshall as simple Lisp vectors</li>
+		<li>Collections and other enumerable entities marshall as simple Lisp lists</li>
+		<li>Default, if no other marshaller applies - a Lisp assoc-list of keywordized-property-name/value pairs for any public properties
             of the object</li>
       </ul>
       </p>
@@ -704,6 +787,13 @@ will be bound to the proxy instance in the body of the method implementations.
             <code>*marshalling-flags*</code> to the <code>logior</code> of flags.
             </p>
         </li>
+        <li>
+            <strong>Function</strong> <code>(marshall fref)</code>
+            <p>
+            Explicitly marshalls the object with the current <code>*marshalling-flags*</code> and <code>*marshalling-depth*</code> settings,
+            and returns the marshalled object (which may be the same fref, but with additional data in its type/hash/val slots)
+            </p>
+        </li>
             
             </ul>      
 
@@ -726,6 +816,7 @@ CL-USER 90 > (pprint (with-marshalling (1 +MARSHALL-NO-IDS+)
  (:SPECIFICATIONTITLE . "Java Platform API Specification")
  (:SPECIFICATIONVENDOR . "Sun Microsystems, Inc.")
  (:SPECIFICATIONVERSION . "1.4")) </pre>
+
 
 
 <a name="runtimeservers"></a><h2>Runtime Servers</h2>
