@@ -1,4 +1,3 @@
-using	System;
 /*
  * Created on Dec 8, 2004
  *
@@ -10,17 +9,28 @@ using	System;
  * 	 the terms of this license.
  *   You must not remove this notice, or any other, from this software.
  */
+using	System;
+using	System.IO;
+using	System.Collections;
+using	System.Reflection;
+
+/**
+ * @author Eric Thorsen
+ *
+ */
+
 namespace com.richhickey.foil	
 {
-
-	/**
-	 * @author Eric Thorsen
-	 *
-	 * TODO To change the template for this generated type comment go to
-	 * Window - Preferences - Java - Code Style - Code Templates
-	 */
 	public interface IReflector
 	{
 		ICallable getCallable(int memberType, Type	c, String memberName);
+		Object createNew(Type c, ArrayList args);
+		void members(Type c,TextWriter w);
+		ArrayList bases(Type c);
+		Object createVector(Type c,int length,ArrayList inits);
+		Object vectorGet(Object v,int index) ;
+		void vectorSet(Object v,int index,Object val);
+		Object vectorLength(Object v);
+		void setProps(Object o, ArrayList nameValuePairs);
 	}
 }

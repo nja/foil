@@ -11,6 +11,11 @@
  */
 using System;
 
+/**
+ * @author Eric Thorsen
+ *
+ */
+
 namespace com.richhickey.foil
 {
 	/// <summary>

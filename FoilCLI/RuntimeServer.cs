@@ -1,8 +1,25 @@
+/*
+ * Created on Dec 7, 2004
+ *
+ *   Copyright (c) Rich Hickey. All rights reserved.
+ *   The use and distribution terms for this software are covered by the
+ *   Common Public License 1.0 (http://opensource.org/licenses/cpl.php)
+ *   which can be found in the file CPL.TXT at the root of this distribution.
+ *   By using this software in any fashion, you are agreeing to be bound by
+ * 	 the terms of this license.
+ *   You must not remove this notice, or any other, from this software.
+ * 
+ * 
+ */
 using System;
 using System.IO;
 using System.Collections;
 using System.Reflection;
 
+/**
+ * @author Eric Thorsen
+ *
+ */
 
 namespace com.richhickey.foil
 {
@@ -40,6 +57,7 @@ public void processMessages(TextReader ins,TextWriter outs)
 		{
 	    String resultMessage = null;
 		try{
+			
 			ArrayList message = reader.readMessage(ins);
 			if(isMessage(":call",message))
 			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
@@ -47,7 +65,7 @@ public void processMessages(TextReader ins,TextWriter outs)
 				ICallable c = (ICallable)message[1];
 				int marshallFlags = intArg(message[2]);
 				int marshallDepth = intArg(message[3]);
-				Object ret = c.invoke(message.GetRange(4,message.Count-4));
+				Object ret = c.invoke(message[4],message.GetRange(5,message.Count-5));
 				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
 			    }
 			else if(isMessage(":cref",message))
@@ -59,11 +77,26 @@ public void processMessages(TextReader ins,TextWriter outs)
 			    ICallable ret = reflector.getCallable(memberType,c,memberName);
 				resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
 			    }
+			else if(isMessage(":new",message))
+				//(:new tref marshall-flags marshall-value-depth-limit (args ...) property-inits ...)
+			    {
+			    Type c = typeArg(message[1]);
+				int marshallFlags = intArg(message[2]);
+				int marshallDepth = intArg(message[3]);
+				ArrayList args = (ArrayList)message[4];
+			    Object ret = reflector.createNew(c,args);
+			    //set props
+			    if(message.Count>5)
+			        {
+			        reflector.setProps(ret,message.GetRange(5,message.Count-5));
+			        }
+				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
 			else if(isMessage(":tref",message))
 			    //(:tref "packageQualifiedTypeName")
 			    {
 			    Type c = Type.GetType((String)message[1]);
-				resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
+				 resultMessage = createRetString(c,marshaller,IBaseMarshallerFlags.MARSHALL_ID,1);
 			    }
 			else if(isMessage(":free",message))
 			    //(:free refid ...)
@@ -87,6 +120,49 @@ public void processMessages(TextReader ins,TextWriter outs)
 			    Object o2 = message[2];
 			    Boolean ret = (o1 == null) ? (o2 == null) : o1.Equals(o2);
 				resultMessage = createRetString(ret?true:false,marshaller,0,0);
+			    }
+			else if(isMessage(":vector",message))
+			    {
+			    //(:vector tref|"packageQualifiedTypeName" length value ...)			    {
+			    Type c = typeArg(message[1]);
+				int length = intArg(message[2]);
+				Object ret = reflector.createVector(c
+													,length
+													,message.GetRange(3,message.Count-3)
+													);
+				resultMessage = createRetString(ret,marshaller,IBaseMarshallerFlags.MARSHALL_ID,0);
+			    }
+			else if(isMessage(":vget",message))
+			    //(:vget aref marshall-flags marshall-value-depth-limit index)
+			    {
+				int marshallFlags	= intArg(message[2]);
+				int marshallDepth	= intArg(message[3]);
+				int index			= intArg(message[4]);
+				Object ret			= reflector.vectorGet(message[1],index);
+				resultMessage		= createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
+			else if(isMessage(":vset",message))
+			    //(:vset aref index value)
+			    {
+				int index = intArg(message[2]);
+				reflector.vectorSet(message[1],index,message[3]);
+				resultMessage = createRetString(null,marshaller,0,0);
+			    }
+			else if(isMessage(":vlen",message))
+			    //(:vlen aref)
+			    {
+				Object ret = reflector.vectorLength(message[1]);
+				resultMessage = createRetString(ret,marshaller,0,0);
+			    }
+			else if(isMessage(":bases",message))
+			    //(:bases tref|"packageQualifiedTypeName")
+			    {
+			    Type c = typeArg(message[1]);
+				StringWriter sw = new StringWriter();
+				sw.Write("(:ret");
+				marshaller.marshallAsList(reflector.bases(c),sw,IBaseMarshallerFlags.MARSHALL_ID,1);
+				sw.Write(')');
+				resultMessage = sw.ToString(); 
 			    }
 			else if(isMessage(":type-of",message))
 			    //(:type-of ref)
@@ -133,17 +209,17 @@ public void processMessages(TextReader ins,TextWriter outs)
 		}
 	}
 
-	String stringArg(Object o)
+	internal	static	String stringArg(Object o)
 	    {
 	    return (String)o;
 	    }
 	
-	int intArg(Object o)
+	internal	static	int intArg(Object o)
 	    {
 	    return Convert.ToInt32(o);
 	    }
 	
-	Type typeArg(Object arg) 
+	internal	static	Type typeArg(Object arg) 
 	    {
 	    if(arg is Type)
 	        return (Type)arg;
@@ -155,7 +231,7 @@ public void processMessages(TextReader ins,TextWriter outs)
 	        throw new Exception("expecting type arg, either reference or packageQualifiedName string");
 	    }
 	
-	Boolean isMessage(String type,ArrayList message)
+	internal	static	Boolean isMessage(String type,ArrayList message)
 	    {
 	    return String.Compare(type,(String)message[0],true)==0;
 	    }

@@ -14,15 +14,21 @@ using System.Collections;
 using System.IO;
 using System.Text;
 
+/**
+ * @author Eric Thorsen
+ *
+ */
 namespace com.richhickey.foil
 {
 	public class MessageReader :IReader
 	{
-		IReferenceManager referenceManager;
-    
-		public	MessageReader(IReferenceManager referenceManager)
+		IReferenceManager	referenceManager;
+		IReflector			reflector;
+
+		public	MessageReader(IReferenceManager referenceManager,IReflector reflector)
 		{
-			this.referenceManager = referenceManager;
+			this.referenceManager	=	referenceManager;
+			this.reflector			=	reflector;
 		}
 
 		public ArrayList readMessage(TextReader strm) 
@@ -78,6 +84,47 @@ namespace com.richhickey.foil
 			return ret;
 		}
 
+		Object readMacro(TextReader strm)
+			{
+			int c = strm.Read();
+			if (c != '#')
+				throw new IOException("expected macro to begin with '#'");
+			c = strm.Peek();
+			if(c == '{')
+				{
+				return processMacroList(readDelimitedList(strm,'{','}'));
+				}
+			else if(c == '}')	// }id
+				{
+				strm.Read();
+				int id = Convert.ToInt32(readToken(strm));
+				return referenceManager.getObjectForId(id);
+				}
+			else if(c == '\\')
+				{
+				strm.Read();
+				c = strm.Read();
+				return Convert.ToChar(c);
+				}
+			else
+				throw new Exception("unsupported macro sequence");
+			}
+
+		Object processMacroList(ArrayList args)
+		{
+	    if(RuntimeServer.isMessage(":box",args))
+	        {
+	        return Reflector.numericConvert(RuntimeServer.typeArg(args[1]),args[2]);
+	        }
+	    else if(RuntimeServer.isMessage(":vector",args))
+	        {
+	        return reflector.createVector(	RuntimeServer.typeArg(args[1])
+											,args.Count-2
+											,args.GetRange(2,args.Count));
+	        }
+       throw new Exception("unsupported macro sequence");
+		}
+
 		static protected String readString(TextReader strm)
 		{
 			int c = strm.Read();
@@ -109,38 +156,7 @@ namespace com.richhickey.foil
 			return sb.ToString();
 		}
 
-		Object readMacro(TextReader strm)
-			{
-			int c = strm.Read();
-			if (c != '#')
-				throw new IOException("expected macro to begin with '#'");
-			c = strm.Peek();
-			if(c == '{')
-				{
-				return processMacroList(readDelimitedList(strm,'{','}'));
-				}
-			else if(c == '}')	// }id
-				{
-				strm.Read();
-				int id = Convert.ToInt32(readToken(strm));
-				return referenceManager.getObjectForId(id);
-				}
-			else if(c == '\\')
-				{
-				strm.Read();
-				c = strm.Read();
-				return Convert.ToChar(c);
-				}
-			else
-				throw new Exception("unsupported macro sequence");
-			}
-
-		Object processMacroList(ArrayList args)
-		{
-			//todo handle {:box ... and {:array ...
-			return null;
-		}
-
+		
 		protected Object readToken(TextReader strm) 
 		{
 			StringBuilder sb	= new StringBuilder();

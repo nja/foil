@@ -12,6 +12,11 @@
 using System;
 using System.Collections;
 
+/**
+ * @author Eric Thorsen
+ *
+ */
+
 namespace com.richhickey.foil 
 {
 	public class ReferenceManager : IReferenceManager

@@ -29,19 +29,19 @@ namespace com.richhickey.foil
 		{
 			for(;;)
 			{
-			IReferenceManager referenceManager = new ReferenceManager();
-			BaseMarshaller baseMarshaller = new BaseMarshaller(referenceManager);
-			baseMarshaller.registerMarshaller(Type.GetType("System.Object"), new UniversalMarshaller());
-			IReader reader = new MessageReader(referenceManager);
-			IReflector reflector = new Reflector();
-			IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
-			try{
-		        server.processMessages(Console.In,Console.Out);
-	    	}
-			catch(Exception ex)
-			{
-				Console.WriteLine(ex.Message);
-				break;
+				IReferenceManager referenceManager	= new ReferenceManager();
+				BaseMarshaller baseMarshaller		= new BaseMarshaller(referenceManager);
+				baseMarshaller.registerMarshaller(Type.GetType("System.Object"), new UniversalMarshaller());
+				IReflector	reflector				=	new Reflector(baseMarshaller);
+				IReader reader						= new MessageReader(referenceManager,reflector);
+				IRuntimeServer server				= new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
+				try {
+			        server.processMessages(Console.In,Console.Out);
+	    		}
+				catch(Exception ex)
+				{
+					Console.WriteLine(ex.Message);
+					break;
 				}
 			}
 		}

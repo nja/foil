@@ -14,13 +14,12 @@ using System.IO;
 /**
  * @author Eric Thorsen
  *
- * TODO To change the template for this generated type comment go to
- * Window - Preferences - Java - Code Style - Code Templates
  */
 namespace	com.richhickey.foil	
 {
 	public	sealed class IBaseMarshallerFlags	
 	{
+		public	const	int	MARSHALL_NONE	=	0;
 		public	const	int	MARSHALL_ID		=	1;
 		public	const	int	MARSHALL_TYPE	=	2;
 		public	const	int	MARSHALL_HASH	=	4;
@@ -28,9 +27,10 @@ namespace	com.richhickey.foil
 
 	public interface	IBaseMarshaller
 	{
-		void marshallAtom(Object o,TextWriter w, int flags,int depth);
-		bool canMarshallAsList(Object o);
-		void marshallAsList(Object o,TextWriter w, int flags,int depth);
-		void marshallAsVector(Object o,TextWriter w, int flags,int depth);
+		  void marshallAtom(Object o,TextWriter w, int flags,int depth);
+		  bool canMarshallAsList(Object o);
+		  void marshallAsList(Object o,TextWriter w, int flags,int depth);
+		  void marshallAsVector(Object o,TextWriter w, int flags,int depth);
+		 // IMarshaller findMarshallerFor(Type c);
 	}
 }

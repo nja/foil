@@ -11,27 +11,32 @@
  */
 using System;
 using System.Collections;
+	
+/**
+ * @author Eric Thorsen
+ *
+ */
 
 namespace com.richhickey.foil
 {
 	public	class	ICallableFlags
 	{
 		public const int METHOD = 0;
-		public const int FIELD_GET = 1;
-		public const int FIELD_SET = 2;
+		public const int FIELD = 1;
+		//public const int FIELD_SET = 2;
 		public const int PROPERTY_GET = 3;
 		public const int PROPERTY_SET = 4;
-		public const int STATIC_METHOD = 5;
-		public const int STATIC_FIELD_GET = 6;
-		public const int STATIC_FIELD_SET = 7;
-		public const int STATIC_PROPERTY_GET = 8;
-		public const int STATIC_PROPERTY_SET = 9;
+		//public const int STATIC_METHOD = 5;
+		//public const int STATIC_FIELD_GET = 6;
+		//public const int STATIC_FIELD_SET = 7;
+		//public const int STATIC_PROPERTY_GET = 8;
+		//public const int STATIC_PROPERTY_SET = 9;
 	}
 	/// <summary>
 	/// Summary description for ICallable.
 	/// </summary>
 	public interface ICallable 
 	{
-		Object invoke(ArrayList args);
+		Object invoke(Object o,ArrayList args);
 	}
 }

@@ -12,6 +12,11 @@
 using System;
 using System.IO;
 
+/**
+ * @author Eric Thorsen
+ *
+ */
+
 namespace  com.richhickey.foil
 {
 	/// <summary>
