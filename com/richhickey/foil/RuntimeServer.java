@@ -15,6 +15,7 @@ package com.richhickey.foil;
 
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
+import java.net.*;
 import java.util.List;
 
 
@@ -297,8 +298,20 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    IReader reader = new MessageReader(referenceManager,reflector);
 	    IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
 	    try{
-	        server.processMessages(new BufferedReader(new InputStreamReader(System.in)),
-	            new BufferedWriter(new OutputStreamWriter(System.out)));
+	    	if(args.length == 1) //port #, run o nsocket
+	    	{
+	    		ServerSocket ss = new ServerSocket(Integer.parseInt(args[0]));
+	    		
+	    		Socket s = ss.accept();
+	    		//s.setTcpNoDelay(true);
+	    		server.processMessages(new BufferedReader(new InputStreamReader(s.getInputStream())),
+	    				new BufferedWriter(new OutputStreamWriter(s.getOutputStream())));
+	    	}
+	    	else //run on stdio
+	    		{
+	    		server.processMessages(new BufferedReader(new InputStreamReader(System.in)),
+	    				new BufferedWriter(new OutputStreamWriter(System.out)));
+	    		}
 	    	}
         catch(Exception ex)
 	    	{
