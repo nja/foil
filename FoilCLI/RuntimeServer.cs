@@ -24,6 +24,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.ComponentModel;
 using System.Configuration;
+using System.Threading;
 
 /**
  * @author Eric Thorsen
@@ -72,7 +73,7 @@ namespace com.richhickey.foil
      */
 public Object processMessages(TextReader ins,TextWriter outs) 
 	{
-	lock(this)
+//	lock(this)
 	{
 		proxyReader	=	ins;
 		proxyWriter	=	outs;
@@ -279,6 +280,7 @@ public Object processMessages(TextReader ins,TextWriter outs)
 					sb.AppendFormat(" {0}",ie.Message);
 					ie	=	ie.InnerException;
 				}
+				Console.WriteLine("Thread:{0} - Exception:{1}",Thread.CurrentThread.Name,sb.ToString());
 				marshaller.marshallAtom(sb.ToString(),outs,0,0);
 				marshaller.marshallAtom(String.Format("{0}{1}",sb.ToString(),ex.StackTrace),outs,0,0);
 				outs.Write(')');
@@ -298,33 +300,33 @@ public Object processMessages(TextReader ins,TextWriter outs)
 	{
 		TextReader reader = (TextReader)proxyReader;
 		TextWriter writer = (TextWriter)proxyWriter;
-		
 		//form the call message:
 		//(:proxy-call method-symbol proxy-ref args ...)
 		//method-symbol has the form: |package.name|::classname.methodname
-		
 		String decl = method.DeclaringType.FullName;
 		StringWriter sw = new StringWriter();
 		sw.Write("(:proxy-call |");
-		int firstDotInx	=	decl.IndexOf('.');
-		sw.Write(decl.Substring(0,firstDotInx));
-		sw.Write("|::");
-		sw.Write(decl.Substring(firstDotInx+1));
-		sw.Write('.');
-		sw.Write(method.Name);
-		
+		//ET deal with delegate calls
+		//if(proxy is Delegate)
+		//	sw.Write("System|::Delegate.DynamicInvoke");
+		//else
+		{
+			int dotInx	=	decl.LastIndexOf('.');
+			sw.Write(decl.Substring(0,dotInx));
+			sw.Write("|::");
+			sw.Write(decl.Substring(dotInx+1));
+			sw.Write('.');
+			sw.Write(method.Name);
+		}
 		marshaller.marshallAtom(proxy,sw,IBaseMarshallerFlags.MARSHALL_ID,0);
 		
 		for(int i=0;i<args.Length;i++)
-		{
-		marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
-		}
+			marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
 		
 		sw.Write(')');
 		
 		writer.Write(sw.ToString());
 		writer.Flush();
-		
 		
 		return processMessages(reader,writer);
 	}

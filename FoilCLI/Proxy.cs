@@ -73,10 +73,14 @@ namespace com.richhickey.foil
 		/// In case the user wants to store any data in the proxy.
 		/// </summary>
         public		Object				data;	// opaque data
+		// proxy call target.  When inplementing interfaces it's 'this else a delegate
+		public		Object				target;	// opaque data
 		// For creating unique names.
 		static	Random		rand			=	new Random((int)DateTime.Now.Ticks);
 		// For the class cache.
 		static	Hashtable	metadataCache	=	new Hashtable();
+		// For the class cache for Event handlers.
+		static	Hashtable	delegateCache	=	new Hashtable();
 		/// <summary>
 		/// Properties for the callbacks.  If an implementation of IInvocationHandler
 		/// is used it is bound to an InvocationDelegate.
@@ -127,8 +131,9 @@ namespace com.richhickey.foil
 		{
 			if(interfaces.Length==0)
 				throw new ArgumentOutOfRangeException("interfaces must contain at least 1 interface type");
-			Proxy	p				=	createInstance(new InvocationDelegate(_iInvocationHandler.Invoke),data,recurseInterfaces(interfaces));
-			p._iInvocationHandler	=	_iInvocationHandler;
+			Object	p				=	createInstance(new InvocationDelegate(_iInvocationHandler.Invoke),data,recurseInterfaces(interfaces));
+			if(p is Proxy)
+				((Proxy)p)._iInvocationHandler	=	_iInvocationHandler;
 			return	p;
 		}
 		/// <summary>
@@ -139,15 +144,32 @@ namespace com.richhickey.foil
 		/// <param name="data">any data the user wishes to store in the proxy instance</param>
 		/// <param name="interfaces">set of interfaces to implement</param>
 		/// <returns>an instance of the proxy with the bound callback and data</returns>
-		static internal	Proxy	createInstance(InvocationDelegate invoker,Object data,Type[] interfaces)
+		static internal	Object	createInstance(InvocationDelegate invoker,Object data,Type[] interfaces)
 		{
 			Type	newType				=	getClassFor(interfaces);
 			Proxy	proxy				=	(Proxy)Activator.CreateInstance(newType,true);
 			proxy._invocationDelegate	=	invoker;
 			proxy.data					=	data;
-			return	proxy;
+			if(isDelegate(interfaces))
+				return	proxy.target	=	Delegate.CreateDelegate(interfaces[0],proxy,"Invoke");
+			else
+				return	proxy.target	=	proxy;
 		}
 
+		static	internal	bool	isDelegate(Type[] types)
+		{
+			if(types.Length==1)
+				return	types[0].BaseType == typeof(System.MulticastDelegate);
+			return	false;
+		}
+
+		static	internal	bool	areAllInterfaces(Type[] types)
+		{
+			foreach(Type i in types)
+				if(!i.IsInterface)
+					throw new ArgumentException("All types for proxies must be interfaces or a single delegate type.");
+			return	true;
+		}
 		/// <summary>
 		/// Handles getting a proxy type from the cache or creating it.
 		/// </summary>
@@ -158,21 +180,31 @@ namespace com.richhickey.foil
 
 			String	k		=	buildHashString(interfaces);
 			Object	newType	=	metadataCache[k];
-			if(newType!=null)
-				return	(Type)newType;
+			if(newType==null)
+			{
+				if(isDelegate(interfaces))
+					metadataCache[k]	=	newType	=	buildTypeForDelegate(interfaces[0]);
+				else
+					metadataCache[k]	=	newType	=	buildTypeForInterfaces(interfaces);
+			}
+			return	(Type)newType;
+		}
+
+		static	Type	buildTypeForInterfaces(Type[] interfaces)
+		{
 			AppDomain appDomain = AppDomain.CurrentDomain;
 			AssemblyName assemblyName = new AssemblyName();
 			assemblyName.Name	= "_Dymamic__PROXY_TT_";
 			AssemblyBuilder assemblyBuilder = appDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
 			ModuleBuilder	moduleBuilder	= assemblyBuilder.DefineDynamicModule("_TT_DymanicModule_");
-
 			TypeBuilder builder	= moduleBuilder.DefineType(		String.Format("TTProxy{0}.{1}",rand.Next(),interfaces[0])
-															,	TypeAttributes.Public
-															,	typeof(Proxy)
-															,	interfaces
-															);
+				,	TypeAttributes.Public
+				,	typeof(Proxy)
+				,	interfaces
+				);
 			Type	proxyType	=	typeof(Proxy);
 			FieldInfo	fb		=	proxyType.GetField("_invocationDelegate",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+			FieldInfo	target	=	proxyType.GetField("target",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
 			foreach(Type t in interfaces)
 			{
 				Hashtable	properties	=	new Hashtable();
@@ -184,11 +216,28 @@ namespace com.richhickey.foil
 					properties[pb.Name]	=	pb;
 				}
 				foreach(MethodInfo m in t.GetMethods(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public))
-					Implementor.ImplementMethod(t,m,builder,fb,properties);
+					Implementor.ImplementMethod(t,m,builder,fb,target,properties);
 			}
-			newType				=	builder.CreateType();
-			metadataCache[k]	=	newType;
-			return	(Type)newType;
+			return	builder.CreateType();
+		}
+
+		static	Type	buildTypeForDelegate(Type delegateType)
+		{
+			AppDomain appDomain = AppDomain.CurrentDomain;
+			AssemblyName assemblyName = new AssemblyName();
+			assemblyName.Name	= "_Dymamic__PROXY_TT_";
+			AssemblyBuilder assemblyBuilder = appDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+			ModuleBuilder	moduleBuilder	= assemblyBuilder.DefineDynamicModule("_TT_DymanicModule_");
+			TypeBuilder builder	= moduleBuilder.DefineType(		String.Format("TTProxy{0}.{1}",rand.Next(),delegateType)
+				,	TypeAttributes.Public
+				,	typeof(Proxy)
+				);
+
+			Type	proxyType	=	typeof(Proxy);
+			FieldInfo	fb		=	proxyType.GetField("_invocationDelegate",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+			FieldInfo	target	=	proxyType.GetField("target",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+			Implementor.ImplementMethod(delegateType,delegateType.GetMethod("Invoke"),builder,fb,target,null);
+			return	builder.CreateType();
 		}
 
 		/// <summary>
@@ -213,7 +262,8 @@ namespace com.richhickey.foil
 		static	internal	void	doRecurseInterfaces(Hashtable	list,Type intface)
 		{
 			list.Add(intface.ToString(),intface);
-			if(intface.BaseType==null||intface.BaseType==typeof(Object))
+			if(intface.BaseType==null||intface.BaseType==typeof(Object)||
+				intface.BaseType==typeof(System.MulticastDelegate)||intface.BaseType==typeof(System.Delegate))
 				return;
 			doRecurseInterfaces(list,intface.BaseType);
 		}

@@ -29,6 +29,7 @@ namespace com.richhickey.foil
 		[STAThread]
 		static void Main(string[] args)
 		{
+			ArrayList	threads	=	new ArrayList();
 			for(;;)
 			{
 				IReferenceManager referenceManager	= new ReferenceManager();
@@ -49,14 +50,21 @@ namespace com.richhickey.foil
 							Int32			port	= Int32.Parse(args[i]);
 							RuntimeSocketServer	rts	= new RuntimeSocketServer(rs,port);
 							//Do I need to reference these?
-							(new Thread(new ThreadStart(rts.processMessagesOnSocket))).Start();
+							Thread	t	=	new Thread(new ThreadStart(rts.processMessagesOnSocket));
+							t.Name	=	String.Format("Background thread {0}",i);
+							t.Start();
+							threads.Add(t);
+							Console.WriteLine("Started background thread on TCP/IP port {0}",port);
 						}
 						//app lives with first socket
+						Thread.CurrentThread.Name	=	String.Format("Main thread");
 						RuntimeSocketServer	mainRts	= new RuntimeSocketServer(server,Int32.Parse(args[0]));
+						Console.WriteLine("Started main thread on TCP/IP port {0}",Int32.Parse(args[0]));
 						mainRts.processMessagesOnSocket();
 					}
 					else //run on stdio
 					{
+						Console.WriteLine("foil-cli server bound to stdio streams");
 						server.processMessages(Console.In,Console.Out);
 					}
 				}

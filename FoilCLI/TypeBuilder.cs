@@ -30,7 +30,7 @@ namespace com.richhickey.foil
 		}
 
 		
-		static	public	void	ImplementMethod(Type interfaceType,MethodInfo method,TypeBuilder typeBuilder,FieldInfo invoker,Hashtable	props)
+		static	public	void	ImplementMethod(Type interfaceType,MethodInfo method,TypeBuilder typeBuilder,FieldInfo invoker,FieldInfo target,Hashtable	props)
 		{
 			Type[]	args	=	Reflector.getParameterTypes(method.GetParameters());
 			// Don't need to do these for Object
@@ -54,22 +54,25 @@ namespace com.richhickey.foil
 											,	args);
 			
 			// Forward all calls to the invocationHandler delegate
-			genDelegateCall(interfaceType,args,methodBuilder,invoker);
+			genDelegateCall(interfaceType,args,methodBuilder,invoker,target);
 			checkForPropertyFuncs(methodBuilder,props);//Bind functions to properties if applicable
 		}
 
 		static	public	void	genDelegateCall(	Type			interfaceType
 													,Type[]			parameters
 													,MethodBuilder	methodBuilder
-													,FieldInfo		invoker)
+													,FieldInfo		invoker
+													,FieldInfo		target)
 		{
 			ILGenerator	IL	=	methodBuilder.GetILGenerator();
 			// Declare and initialize the array for passing the parameters.
 			IL.DeclareLocal(typeof(object[]));		//loc.0
 			IL.DeclareLocal(typeof(MethodInfo));	//loc.1
+			IL.DeclareLocal(typeof(object));		//loc.2
+
 			//If there is a return
 			if(methodBuilder.ReturnType!=typeof(void))
-				IL.DeclareLocal(methodBuilder.ReturnType);	//loc.2
+				IL.DeclareLocal(methodBuilder.ReturnType);	//loc.3
 			// Init the args array
 			if(parameters==null)
 			{
@@ -93,18 +96,22 @@ namespace com.richhickey.foil
 			IL.Emit(OpCodes.Ldtoken,mi);
 			IL.Emit(OpCodes.Call, typeof(MethodBase).GetMethod("GetMethodFromHandle"));
 			storeLocal(IL,1);
+			IL.Emit(OpCodes.Ldarg_0);		//	Proxy (this)
+			IL.Emit(OpCodes.Ldfld, target);	//	The delegate from the proxy
+			storeLocal(IL,2);
 			// Setup the stack for the delegate call.
 			IL.Emit(OpCodes.Ldarg_0);		//	this needed for the load field opcode
 			IL.Emit(OpCodes.Ldfld, invoker);//	The delegate from the proxy
-			IL.Emit(OpCodes.Ldarg_0);		//	1st arg - Proxy (this)
+			loadLocal(IL,2);
+			//IL.Emit(OpCodes.Ldarg_0);		//	1st arg - Proxy (this)
 			loadLocal(IL,1);				//	2nd arg - MethodInfo 
 			loadLocal(IL,0);				//	3rd arg - array of arguments
 			IL.Emit(OpCodes.Callvirt,(typeof(Proxy.InvocationDelegate).GetMethod("Invoke")));
 			emitReturnFromMethod(IL, methodBuilder.ReturnType);
 			if(methodBuilder.ReturnType!=typeof(void))
 			{	// Not sure I need to so this but the C# compiler seems to generate this code?
-				storeLocal(IL,2);
-				loadLocal(IL,2);
+				storeLocal(IL,3);
+				loadLocal(IL,3);
 			}
 			IL.Emit(OpCodes.Ret);
 			}
