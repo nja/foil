@@ -14,12 +14,18 @@ using System.Reflection;
 using System.IO;
 using System.Collections;
 using System.Threading;
+using System.Data.SqlClient;
 using com.richhickey.foil;
 
 namespace com.richhickey.foil
 {
+	/// <summary>
+	/// Summary description for Class1.
+	/// </summary>
+
 	class FoilCLISvr
 	{
+
 		[STAThread]
 		static void Main(string[] args)
 		{
@@ -28,6 +34,7 @@ namespace com.richhickey.foil
 				IReferenceManager referenceManager	= new ReferenceManager();
 				BaseMarshaller baseMarshaller		= new BaseMarshaller(referenceManager);
 				baseMarshaller.registerMarshaller(Type.GetType("System.Object"), new UniversalMarshaller());
+				baseMarshaller.registerMarshaller(typeof(System.Data.SqlClient.SqlDataReader), new SqlDataReaderMarshaller());
 				IReflector	reflector				=	new Reflector(baseMarshaller);
 				IReader reader						= new MessageReader(referenceManager,reflector);
 				RuntimeServer server				= new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
