@@ -108,12 +108,18 @@ public class BaseMarshaller implements IBaseMarshaller
                 else
                     w.write("nil");
                 }
+            else if(o instanceof Character)
+                {
+                w.write("#\\");
+                w.write(((Character)o).charValue());
+                }
             else
                 w.write(o.toString());
             }
         else if(o instanceof String)
             {
             w.write('"');
+            //TODO make this more efficient
     		w.write(((String)o).replaceAll("\\\\","\\\\\\\\").replaceAll("\"","\\\\\""));
             w.write('"');
             }
