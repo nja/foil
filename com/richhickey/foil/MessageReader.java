@@ -192,7 +192,8 @@ public class MessageReader implements IReader
                 ret = Character.isDigit(s.charAt(i))
                 	|| s.charAt(i) == '-';
                 }
-            ret = Character.isDigit(s.charAt(i));
+            else
+                ret = Character.isDigit(s.charAt(i));
             }
         return ret;
         }
