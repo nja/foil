@@ -36,3 +36,19 @@
               (push (nsubstitute #\. #\/ (subseq ename 0 (- (length ename) 6)))
                     names))))))
     names))
+
+
+(defun gen-wrappers ()
+  (dump-wrapper-defs-to-file "/foil/java-lang.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/"))
+  (dump-wrapper-defs-to-file "/foil/java-util.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/util/"))
+  (dump-wrapper-defs-to-file "/foil/java-io.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/io/"))
+  (dump-wrapper-defs-to-file "/foil/java-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/sql/"))
+  (dump-wrapper-defs-to-file "/foil/javax-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "javax/sql/"))
+  (dump-wrapper-defs-to-file "/foil/swt.lisp" (get-jar-classnames "/swt/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
+
+  (compile-file "/foil/java-lang")
+  (compile-file "/foil/java-util")
+  (compile-file "/foil/java-io")
+  (compile-file "/foil/java-sql")
+  (compile-file "/foil/javax-sql")
+  (compile-file "/foil/swt"))

@@ -13,6 +13,7 @@
    :dump-wrapper-defs
    :dump-wrapper-defs-to-file
    :def-foil-class
+   :full-class-name
 
    :equals
    :instance-of
@@ -66,7 +67,10 @@
 (load "/foil/java-io")
 (load "/foil/java-util")
 (load "/foil/java-sql")
-(setf *fvm* (make-instance 'foreign-vm :lisp-driven-stream (sys:open-pipe "java -Xmx128m -cp c:/dev/foil com.richhickey.foil.RuntimeServer")))
+(use-package '("java.lang" "java.io" "java.util" "java.sql"))
+(setf *fvm* (make-instance 'foreign-vm
+             :lisp-driven-stream
+             (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
 (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
 |#
 
@@ -186,6 +190,13 @@
         (make-package name :use '()))))
 
 
+(defun type-arg (arg)
+  (etypecase arg
+    (keyword arg)
+    (string arg)
+    (fref arg)
+    (symbol (find-class-ref arg))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;; names and symbols ;;;;;;;;;;;;;;;;;;;;;;;
 #|
 The library does a lot with names and symbols, needing at various times to:
@@ -225,9 +236,13 @@ the full class name as a string, the class-symbol, or one of :boolean, :int etc
 (defun foil-class-name (class-sym)
   "inverse of class-symbol, only valid on class-syms created by def-foil-class"
   (let ((canonic-class-symbol (symbol-value class-sym)))
-    (string-append (package-name (symbol-package canonic-class-symbol))
+    (full-class-name canonic-class-symbol)))
+
+(defun full-class-name (canonic-class-symbol)
+  "inverse of canonic-class-symbol"
+  (string-append (package-name (symbol-package canonic-class-symbol))
                                                 "."
-                                                canonic-class-symbol)))
+                                                canonic-class-symbol))
 
 (defun member-symbol (full-class-name member-name)
   "members are defined case-insensitively in case-sensitive packages,
@@ -283,11 +298,11 @@ as it depends upon symbol-value being the canonic class symbol"
                (send-message :type-of fref)))
 
 (defun get-type-for-name (full-class-name)
-  (find-class-ref (class-symbol full-class-name)))
+  (find-class-ref (canonic-class-symbol full-class-name)))
 
 (defun find-class-ref (class-sym)
   (get-or-init (gethash class-sym (fvm-symbol-table *fvm*))
-                            (send-message :tref (foil-class-name class-sym))))
+                            (send-message :tref (full-class-name class-sym))))
 
 (defun find-method-ref (class-sym name method-sym)
   (get-or-init (gethash method-sym (fvm-symbol-table *fvm*))
@@ -331,6 +346,7 @@ and change-classes to a typed reference wrapper"
     (multiple-value-bind (package class) (split-package-and-class full-class-name)
       (declare (ignore class))
       (let* ((class-sym (class-symbol full-class-name))
+             (canonic-class-sym (canonic-class-symbol full-class-name))
              (defs
               (list*
                `(ensure-package ,package)
@@ -347,7 +363,7 @@ and change-classes to a typed reference wrapper"
                                          (remove-duplicates (mapcar #'symbol-package supers))))
                          (list `(defclass ,(class-symbol full-class-name)
                                           ,(or supers '(fref)) ()))
-                         (do-def-members full-class-name class-sym package members))))))
+                         (do-def-members full-class-name canonic-class-sym package members))))))
         ;`(locally ,@defs)
         defs))))
 
@@ -362,9 +378,16 @@ and change-classes to a typed reference wrapper"
   (:documentation "Allows for definition of before/after methods on ctors.
 The new macro expands into call to this"))
 
+(defmethod make-new ((full-class-name string) &rest args)
+  (apply #'make-new (canonic-class-symbol full-class-name) args))
+
 (defun call-ctor (class-sym args)
-  (let ((class (find-class-ref class-sym)))
-    (send-message :new class *marshalling-flags* *marshalling-depth* args)))
+  (let ((class (find-class-ref class-sym))
+        (inits (member-if #'keywordp args)))
+    (if inits
+        (apply #'send-message :new class *marshalling-flags* *marshalling-depth*
+               (ldiff args inits) inits)
+      (send-message :new class *marshalling-flags* *marshalling-depth* args))))
 
 (defun do-def-ctors (full-class-name class-sym package ctor-list)
 "creates and exports a ctor func classname.new, defines a method of 
@@ -375,7 +398,7 @@ make-new specialized on the class-symbol"
           ,(format nil "~{~A~%~}" ctor-list)
           (call-ctor ',class-sym args))
         (export ',ctor-sym ,package)
-        (defmethod make-new ((class-sym (eql ,class-sym)) &rest args)
+        (defmethod make-new ((class-sym (eql ',class-sym)) &rest args)
           (apply (function ,ctor-sym) args))))))
 
 (defmacro with-vm (vm &body body)
@@ -565,7 +588,7 @@ The resulting file will not need a VM running to either compile or load"
   (format strm "#{:box ~S ~S}" (fbox-type box) (fbox-val box)))
 
 (defun box (type val)
-  (make-fbox :type type :val val))
+  (make-fbox :type (type-arg type) :val val))
 
 (defstruct (fvbox (:print-object print-fvbox))
   type
@@ -575,12 +598,12 @@ The resulting file will not need a VM running to either compile or load"
   (format strm "#{:vector ~S~{ ~S~}}" (fvbox-type box) (fvbox-vals box)))
 
 (defun box-vector (type &rest vals)
-  (make-fvbox :type type :vals vals))
+  (make-fvbox :type (type-arg type) :vals vals))
 
 ;;;;;;;;;;;;;;;;vectors;;;;;;;;;;;;;;;;
 
 (defun make-new-vector (type length &rest inits)
-  (apply #'send-message :vector type length inits))
+  (apply #'send-message :vector (type-arg type) length inits))
 
 (defun vref (vec idx)
   (send-message :vget vec *marshalling-flags* *marshalling-depth* idx))
@@ -597,7 +620,7 @@ The resulting file will not need a VM running to either compile or load"
   (send-message :equals fref1 fref2))
 
 (defun instance-of (fref type)
-  (send-message :is-a fref type))
+  (send-message :is-a fref (type-arg type)))
 
 (defun to-string (fref)
   (send-message :str fref))
