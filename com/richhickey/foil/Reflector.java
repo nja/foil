@@ -380,12 +380,18 @@ public class Reflector implements IReflector
                     w.write("(:get-doc ");
                     baseMarshaller.marshallAtom(readm.toString(),w,IBaseMarshaller.MARSHALL_ID,0);
                     w.write(')');
+                    w.write("(:get-function ");
+                    baseMarshaller.marshallAtom(readm.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
+                    w.write(')');
                     }
                 Method setm = prop.getWriteMethod();
                 if(setm != null)
                     {
                     w.write("(:set-doc ");
                     baseMarshaller.marshallAtom(setm.toString(),w,IBaseMarshaller.MARSHALL_ID,0);
+                    w.write(')');
+                    w.write("(:set-function ");
+                    baseMarshaller.marshallAtom(setm.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                     w.write(')');
                     }
                 w.write(')');
