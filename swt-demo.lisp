@@ -97,7 +97,7 @@
                                    :layout (gridlayout.new 1 t)))
          (l4 (label.new info-pane *SWT.LEFT*
                         :text "Doc:"))
-         (info-text (text.new info-pane (logior *SWT.MULTI* *SWT.BORDER* *SWT.LEFT*)
+         (doc-text (text.new info-pane (logior *SWT.MULTI* *SWT.BORDER* *SWT.LEFT*)
                               :layoutdata (griddata.new *GRIDDATA.FILL_BOTH*))))
     (declare (ignore l1 l2 l3 l4))
     ;init the display
@@ -117,14 +117,40 @@
                    (setf (gethash p package-nodes)
                          (treeitem.new symbol-tree *SWT.NONE* :text (package-name p))))
                  (dolist (sym syms)
-                   (treeitem.new (gethash (symbol-package sym) package-nodes)
-                                 *SWT.NONE* :text (symbol-name sym)))
+                   (treeitem.new (gethash (symbol-package sym) package-nodes) *SWT.NONE*
+                                 :text (symbol-name sym)))
                  (tree.setredraw symbol-tree t))))
       (button.addselectionlistener go-button
-                                   (new-proxy p +MARSHALL-ID+ 0 (selectionlistener.
-                                                 (widgetselected (event)
-                                                                 (gob)
-                                                                 nil))))
+        (new-proxy p +MARSHALL-ID+ 0
+                   (selectionlistener.
+                    (widgetselected (event)
+                                    (declare (ignore event))
+                                    (gob)
+                                    nil))))
+      (text.addkeylistener search-text
+        (new-proxy p +MARSHALL-ID+ 0
+                   (keylistener.
+                    (keyreleased (event)
+                                 (when (eql *SWT.CR*
+                                            (keyevent.character event))
+                                   (gob))))))
+      (tree.addselectionlistener symbol-tree
+        (new-proxy p +MARSHALL-ID+ 0
+                   (selectionlistener.
+                    (widgetselected (event)
+                                    (let ((item (selectionevent.item event)))
+                                      ;is it a leaf?
+                                      (when (= 0 (treeitem.itemcount item))
+                                        (let ((sym (find-symbol (treeitem.text item)
+                                                                (treeitem.text (treeitem.parentitem item)))))
+                                        (setf (text.text doc-text)
+                                              (or
+                                               (documentation sym 'function)
+                                               (documentation sym 'variable)
+                                               (documentation sym 'type)
+                                               (documentation sym 'structure)
+                                               "")))))
+                                    nil))))
       ;launch
       (|com.richhickey.foil|::swthelper.rundispatchloop *display* shell))))
 
