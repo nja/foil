@@ -213,7 +213,13 @@ public class MessageReader implements IReader
             }
         String ret = sb.toString();
         if(isInteger(ret))
-            return Integer.valueOf(ret);
+            {
+            long n = Long.parseLong(ret);
+            if(n <= Integer.MAX_VALUE && n >= Integer.MIN_VALUE)
+                return new Integer((int)n);
+            else
+                return new Long(n);
+            }
         else if(shouldBeNumber(ret))
             return Double.valueOf(ret);
         else if(ret.equalsIgnoreCase("nil"))
