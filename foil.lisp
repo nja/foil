@@ -1,0 +1,478 @@
+;    Copyright (c) Rich Hickey. All rights reserved.
+;    The use and distribution terms for this software are covered by the
+;    Common Public License 1.0 (http://opensource.org/licenses/cpl.php)
+;    which can be found in the file CPL.TXT at the root of this distribution.
+;    By using this software in any fashion, you are agreeing to be bound by
+;    the terms of this license.
+;    You must not remove this notice, or any other, from this software.
+
+(defpackage :foil
+  (:use :common-lisp :lispworks)
+  (:export 
+   :*fvm*
+   :foreign-vm
+
+   :def-foil-class
+
+   :*marshalling-flags*
+   :*marshalling-depth*
+
+   :fref
+   :fref-vm
+   :fref-id
+   :fref-hash
+   :fref-val
+
+   :foil-type-of
+   :foil-find-class
+   
+   :ensure-typed-ref
+   :ensure-package
+
+   :make-new
+   
+   :with-vm-of
+   
+   :+marshall-id+
+   :+marshall-hash+
+   :+marshall-type+
+   ))
+
+(in-package :foil)
+
+(defvar *fvm* nil
+  "all messages will be sent to the foreign-vm to which this is bound")
+
+#|
+(use-package :foil)
+(setf *fvm* (make-instance 'foreign-vm :lisp-driven-stream (sys:open-pipe "java -cp c:/dev/foil com.richhickey.foil.RuntimeServer")))
+|#
+
+(defconstant +marshall-none+ 0)
+(defconstant +marshall-id+ 1)
+(defconstant +marshall-type+ 2)
+(defconstant +marshall-hash+ 4)
+
+(defconstant +callable-method+ 0)
+(defconstant +callable-field+ 1)
+(defconstant +callable-property-get+ 3)
+(defconstant +callable-property-set+ 4)
+
+(defvar *marshalling-flags* +marshall-id+)
+(defvar *marshalling-depth* 0)
+
+(defvar *in-async-callback* nil)
+
+(defvar *foil-readtable* 
+  (let* ((tbl (copy-readtable nil))
+         (*readtable* tbl))
+    (set-macro-character #\} (get-macro-character #\)))
+    (set-dispatch-macro-character #\# #\{
+                                  (lambda (stream c1 c2)
+                                    (declare (ignore c1 c2))
+                                    (apply #'handle-braces-macro (read-delimited-list #\} stream t))))
+    tbl))
+
+(defclass fref ()
+  ((vm :reader fref-vm :initarg :vm )
+  (id :reader fref-id :initarg :id)
+  (type :accessor fref-type :initarg :type)
+  (hash :accessor fref-hash :initarg :hash)
+  (val :accessor fref-val :initarg :val))
+  (:default-initargs :vm *fvm* :type nil :hash nil :val nil))
+
+(defun make-fref (&key id type hash val)
+  (make-instance 'fref :id id :type type :hash hash :val val))
+
+(defmethod print-object ((fref fref) stream)
+  (format stream "#}~A" (fref-id fref)))
+
+(defclass foreign-vm ()
+  ((lisp-driven-stream :initarg :lisp-driven-stream :reader fvm-lisp-driven-stream)
+   (vm-driven-stream :reader fvm-vm-driven-stream)
+   (fref-table :initform (make-hash-table :weak-kind :value) :reader fvm-fref-table)
+   (symbol-table :initform (make-hash-table) :reader fvm-symbol-table)))
+
+(defun send-message (&rest args)
+  (let ((send-stream (if *in-async-callback*
+                  (fvm-vm-driven-stream *fvm*)
+                (fvm-lisp-driven-stream *fvm*))))
+    (format send-stream "~S" args)
+    (force-output send-stream)
+    (process-return-message)))
+
+(defun process-return-message ()
+  (let* ((*readtable* *foil-readtable*)
+         (ret-stream (if *in-async-callback*
+                  (fvm-vm-driven-stream *fvm*)
+                (fvm-lisp-driven-stream *fvm*)))
+         (msg (read ret-stream)))
+    (case (first msg)
+      (:ret (second msg))
+      (:err (error (third msg))) ;just dump stack trace for now
+      ;todo - nested :call
+      )))
+
+(defmethod handle-braces-macro ((cmd (eql :ref)) &rest args)
+  (apply #'register-fref args))
+
+;probably insufficiently general, works as used here
+(defmacro get-or-init (place init-form)
+  `(or ,place
+       (setf ,place ,init-form)))
+
+(defun lookup-fref (id)
+  (gethash id (fvm-fref-table *fvm*)))
+
+(defun register-fref (&key id type hash val)
+  (if id
+      (let ((fref (get-or-init (gethash id (fvm-fref-table *fvm*))
+                             (make-fref :id id))))
+        (when type
+          (setf (fref-type fref) type)
+          (ensure-typed-ref fref))
+        (when hash (setf (fref-hash fref) hash))
+        (when val (setf (fref-val fref) val))
+        fref)
+    val))
+
+(eval-when (:compile-toplevel :load-toplevel)
+  (defun ensure-package (name)
+    "find the package or create it if it doesn't exist"
+    (or (find-package name)
+        (make-package name :use '()))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;; names and symbols ;;;;;;;;;;;;;;;;;;;;;;;
+#|
+The library does a lot with names and symbols, needing at various times to:
+ - find stuff in Java/CLR - full names w/case required
+ - create hopefully non-conflicting packages and member names
+
+When you (def-foil-class "java.lang.String") you get a bunch of symbols/names:
+a package named '|java.lang|
+a class-symbol '|java.lang|:STRING. (note the dot and case), 
+   which can usually be used where a typename is required
+   it also serves as the name of the Lisp typed reference class for string
+   its symbol-value is the canonic-class-symbol (see below)
+a canonic-class-symbol '|java.lang|::|String|
+   can be used to reconstitute the full class name
+
+I've started trying to flesh out the notion of a foil class designator, which can either be
+the full class name as a string, the class-symbol, or one of :boolean, :int etc
+|#
+
+
+(defun split-package-and-class (name)
+    (let ((p (position #\. name :from-end t)))
+      (unless p (error "must supply package-qualified classname"))
+      (values (subseq name 0 p)
+              (subseq name (1+ p)))))
+
+(defun canonic-class-symbol (full-class-name)
+  "(\"java.lang.Object\") -> '|java.lang|:|Object|"
+  (multiple-value-bind (package class) (split-package-and-class full-class-name)
+    (intern class (ensure-package package))))
+
+(defun class-symbol (full-class-name)
+  "(\"java.lang.Object\") -> '|java.lang|:object."
+  (multiple-value-bind (package class) (split-package-and-class full-class-name)
+    (intern (string-upcase (string-append class ".")) (ensure-package package))))
+
+(defun foil-class-name (class-sym)
+  "inverse of class-symbol, only valid on class-syms created by def-foil-class"
+  (let ((canonic-class-symbol (symbol-value class-sym)))
+    (string-append (package-name (symbol-package canonic-class-symbol))
+                                                "."
+                                                canonic-class-symbol)))
+
+(defun member-symbol (full-class-name member-name)
+  "members are defined case-insensitively in case-sensitive packages,
+prefixed by 'classname.' -
+(member-symbol \"java.lang.Object\" \"toString\") -> '|java.lang|::OBJECT.TOSTRING"
+  (multiple-value-bind (package class) (split-package-and-class full-class-name)
+    (intern (string-upcase (string-append class "." member-name)) (ensure-package package))))
+
+(defun constructor-symbol (full-class-name)
+  (member-symbol full-class-name "new"))
+
+
+;;;;;;;;;;;;;;;;;;;;;; typed reference support ;;;;;;;;;;;;;;;;;;;;;;;;
+#|
+The library maintains a hierarchy of typed reference classes that parallel the
+class hierarchy on the foreign VM side
+new returns a typed reference, but other functions that return objects
+return raw references (for efficiency) 
+ensure-typed-ref can create fully-typed wrappers when desired
+|#
+
+(defun get-superclass-names (full-class-name)
+  (send-message :bases full-class-name))
+
+(defun ensure-foil-class (full-class-name)
+  "walks the superclass hierarchy and makes sure all the classes are fully defined
+(they may be undefined or just forward-referenced-class)
+caches this has been done on the class-symbol's plist"
+  (let* ((class-sym (class-symbol full-class-name))
+         (class (find-class class-sym nil)))
+    (if (get class-sym :ensured)
+        class
+      (let ((supers (get-superclass-names full-class-name)))
+        (mapc #'ensure-foil-class supers)
+        (unless (and class (subtypep class 'standard-object))
+          (setf class
+                (clos:ensure-class class-sym
+                                   :direct-superclasses (if supers
+                                                            (mapcar #'class-symbol supers)
+                                                          '(fref)))))
+        (setf (get class-sym :ensured) t)
+        class))))
+
+(defun ensure-foil-hierarchy (class-sym)
+  "Works off class-sym for efficient use in new
+This will only work on class-syms created by def-foil-class
+as it depends upon symbol-value being the canonic class symbol"
+  (unless (get class-sym :ensured)
+    (ensure-foil-class (foil-class-name class-sym))))
+
+(defun foil-type-of (fref)
+  (get-or-init (fref-type fref)
+               (send-message :type-of fref)))
+
+(defun foil-find-class (full-class-name)
+  (find-class-ref (class-symbol full-class-name)))
+
+(defun find-class-ref (class-sym)
+  (get-or-init (gethash class-sym (fvm-symbol-table *fvm*))
+                            (send-message :tref (foil-class-name class-sym))))
+
+(defun find-method-ref (class-sym name method-sym)
+  (get-or-init (gethash method-sym (fvm-symbol-table *fvm*))
+                            (send-message :cref +callable-method+ (find-class-ref class-sym) name)))
+
+(defun find-prop-get (class-sym name method-sym)
+  (get-or-init (gethash method-sym (fvm-symbol-table *fvm*))
+                            (send-message :cref +callable-property-get+ (find-class-ref class-sym) name)))
+
+(defun find-prop-set (class-sym name method-sym)
+  (get-or-init (gethash method-sym (fvm-symbol-table *fvm*))
+                            (send-message :cref +callable-property-set+ (find-class-ref class-sym) name)))
+
+(defun find-field-ref (class-sym name field-sym)
+  (get-or-init (gethash field-sym (fvm-symbol-table *fvm*))
+                            (send-message :cref +callable-field+ (find-class-ref class-sym) name)))
+
+(defun class-name-of (fref)
+  (fref-val (foil-type-of fref)))
+
+(defun ensure-typed-ref (fref)
+  "Given a raw fref, determines the full type of the object
+and change-classes to a typed reference wrapper"
+  (when (and fref (eql (find-class 'fref) (class-of fref)))
+    (let ((class-name (class-name-of fref)))
+      ;(when (class.isarray class)
+      ;    (error "typed refs not supported for arrays (yet)")
+      (change-class fref (ensure-foil-class class-name)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;; Wrapper Generation ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun find-tag (tag tagged-alist)
+  (rest (assoc tag tagged-alist)))
+
+(defun find-tag-atom (tag tagged-alist)
+  (car (find-tag tag tagged-alist)))
+
+(defun do-def-foil-class (full-class-name)
+  (let ((bases (send-message :bases full-class-name))
+        (members (send-message :members full-class-name)))
+    (multiple-value-bind (package class) (split-package-and-class full-class-name)
+      (declare (ignore class))
+      (let* ((class-sym (class-symbol full-class-name))
+             (defs
+              (list*
+               `(ensure-package ,package)
+          ;build a path from the simple class symbol to the canonic
+               `(defconstant ,class-sym ',(canonic-class-symbol full-class-name))
+               `(export ',class-sym ,package)
+               ;`(def-java-constructors ,full-class-name)
+               ;`(def-java-methods ,full-class-name)
+               ;`(def-java-fields ,full-class-name)
+               (let ((supers (mapcar #'class-symbol bases)))
+                 (append (mapcar (lambda (p)
+                                   `(ensure-package ,(package-name p)))
+                                 (remove (symbol-package class-sym)
+                                         (remove-duplicates (mapcar #'symbol-package supers))))
+                         (list `(defclass ,(class-symbol full-class-name)
+                                          ,(or supers '(fref)) ()))
+                         (do-def-members full-class-name class-sym package members))))))
+        ;`(locally ,@defs)
+        defs))))
+
+(defun do-def-members (full-class-name class-sym package members)
+  (append
+   (do-def-ctors full-class-name class-sym package (find-tag :ctors members))
+   (do-def-methods full-class-name class-sym package (find-tag :methods members))
+   (do-def-fields full-class-name class-sym package (find-tag :fields members))
+   (do-def-props full-class-name class-sym package (find-tag :properties members))))
+
+(defgeneric make-new (class-sym &rest args)
+  (:documentation "Allows for definition of before/after methods on ctors.
+The new macro expands into call to this"))
+
+(defun call-ctor (class-sym args)
+  (let ((class (find-class-ref class-sym)))
+    (send-message :new class *marshalling-flags* *marshalling-depth* args)))
+
+(defun do-def-ctors (full-class-name class-sym package ctor-list)
+"creates and exports a ctor func classname.new, defines a method of 
+make-new specialized on the class-symbol"
+  (when ctor-list
+    (let ((ctor-sym (constructor-symbol full-class-name)))
+      `((defun ,ctor-sym (&rest args)
+          ,(format nil "~{~A~%~}" ctor-list)
+          (call-ctor ,class-sym args))
+        (export ',ctor-sym ,package)
+        (defmethod make-new ((class-sym (eql ,class-sym)) &rest args)
+          (apply (function ,ctor-sym) args))))))
+
+(defmacro with-vm-of (this &body body)
+  (let ((gthis (gensym)))
+  `(let* ((,gthis ,this)
+          (*fvm* (if (and ,gthis (typep ,gthis 'fref))
+                     (fref-vm ,gthis)
+                   *fvm*)))
+     ,@body)))
+
+(defun foil-call-method (class-sym name method-sym this args)
+  (with-vm-of this
+    (let ((cref (find-method-ref class-sym name method-sym)))
+      (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
+
+(defun do-def-methods (full-class-name class-sym package methods)
+  (let ((methods-by-name (make-hash-table :test #'equal))
+        (defs nil))
+    (dolist (method methods)
+      (push method (gethash (find-tag-atom :name method) methods-by-name)))
+    (maphash
+     (lambda (name methods)
+       (let ((method-sym (member-symbol full-class-name name))
+             (is-static (find-tag-atom :static (first methods)))
+             (doc (format nil "~{~A~%~}" (mapcar (lambda (m)
+                                                   (find-tag-atom :doc m))
+                                                 methods))))
+         (push (if is-static
+                   `(defun ,method-sym (&rest args)
+                      ,doc
+                      (foil-call-method ',class-sym ,name ',method-sym nil args))
+                 `(defun ,method-sym (this &rest args)
+                    ,doc
+                    (foil-call-method ',class-sym ,name ',method-sym this args)))
+               defs)
+         (push `(export ',method-sym ,package)
+               defs)))
+     methods-by-name)
+    (nreverse defs)))
+
+
+
+#|
+all public fields will get a getter function classname.fieldname and a setter - (setf classname.fieldname)
+instance fields take an first arg which is the instance
+static fields also get a symbol-macro *classname.fieldname*
+|#
+
+(defun call-field (class-sym name field-sym this &rest args)
+  (with-vm-of this
+    (let ((cref (find-field-ref class-sym name field-sym)))
+      (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
+
+(defun do-def-fields (full-class-name class-sym package fields)
+  "fields will get a getter function classname.fieldname and a setter - (setf classname.fieldname)
+instance fields take an first arg which is the instance
+static fields also get a symbol-macro *classname.fieldname*"
+  (let* ((defs nil))
+    (dolist (field fields)
+      (let* ((field-name (find-tag-atom :name field))
+             (field-sym (member-symbol full-class-name field-name))
+             (is-static (find-tag-atom :static field))
+             (doc (find-tag-atom :doc field)))
+        (if is-static
+            (let ((macsym (intern (string-append "*" (symbol-name field-sym) "*")
+                                  package)))
+              (push `(defun ,field-sym ()
+                       ,doc
+                       (call-field ',class-sym ,field-name ',field-sym nil))
+                    defs)
+              (push `(defun (setf ,field-sym) (val)
+                       (call-field ',class-sym ,field-name ',field-sym nil val))
+                    defs)
+              (push `(export ',field-sym ,package) defs)
+              (push `(define-symbol-macro ,macsym (,field-sym)) defs)
+              (push `(export ',macsym ,package) defs))
+          (progn
+            (push `(defun ,field-sym (obj)
+                     ,doc
+                     (call-field ',class-sym ,field-name ',field-sym obj))
+                  defs)
+            (push `(defun (setf ,field-sym) (val obj)
+                     (call-field ',class-sym ,field-name ',field-sym obj val))
+                  defs)
+            (push `(export ',field-sym ,package) defs)))))
+    (nreverse defs)))
+
+(defun call-prop-get (class-sym name method-sym this args)
+  (with-vm-of this
+    (let ((cref (find-prop-get class-sym name method-sym)))
+      (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
+
+(defun call-prop-set (class-sym name method-sym this args)
+  (with-vm-of this
+    (let ((cref (find-prop-set class-sym name method-sym)))
+      (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
+
+(defun do-def-props (full-class-name class-sym package props)
+  (let ((props-by-name (make-hash-table :test #'equal))
+        (defs nil))
+    (dolist (prop props)
+      (push prop (gethash (find-tag-atom :name prop) props-by-name)))
+    (maphash
+     (lambda (name props)
+       (let ((method-sym (member-symbol full-class-name name))
+             (getter-sym (when (some (lambda (prop) (find-tag-atom :get-doc prop)) props)
+                           (member-symbol full-class-name (string-append name "-get"))))
+             (setter-sym (when (some (lambda (prop) (find-tag-atom :set-doc prop)) props)
+                           (member-symbol full-class-name (string-append name "-set"))))
+             (is-static (find-tag-atom :static (first props)))
+             (get-doc (format nil "~{~A~%~}" (mapcar (lambda (p)
+                                                   (find-tag-atom :get-doc p))
+                                                 props)))
+             (set-doc (format nil "~{~A~%~}" (mapcar (lambda (p)
+                                                   (find-tag-atom :set-doc p))
+                                                 props))))
+         (when getter-sym
+             (push (if is-static
+                   `(defun ,method-sym (&rest args)
+                      ,get-doc
+                      (call-prop-get ',class-sym ,name ',getter-sym nil args))
+                 `(defun ,method-sym (this &rest args)
+                    ,get-doc
+                    (call-prop-get ',class-sym ,name ',getter-sym this args)))
+               defs))
+         (when setter-sym
+             (push (if is-static
+                   `(defun (setf ,method-sym) (val &rest args)
+                      ,set-doc
+                      (apply #'call-prop-set ',class-sym ,name ',setter-sym nil (append args (list val))))
+                 `(defun (setf ,method-sym) (val this &rest args)
+                    ,set-doc
+                    (apply #'call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
+               defs))
+         (push `(export ',method-sym ,package)
+               defs)))
+     props-by-name)
+    (nreverse defs)))
+
+(defmacro def-foil-class (full-class-name)
+  "Given the package-qualified, case-correct name of a java class, will generate
+wrapper functions for its constructors, fields and methods."
+  `(locally ,@(do-def-foil-class full-class-name)))
