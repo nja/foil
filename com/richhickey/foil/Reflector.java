@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
 import java.beans.*;
 /**
  * @author Rich
@@ -590,4 +592,50 @@ public class Reflector implements IReflector
 		return Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),interfaces,
 				new ProxyHandler(runtime,marshallFlags,marshallDepth));
 	}
+
+	/* (non-Javadoc)
+	 * @see com.richhickey.foil.IReflector#getClassNames(java.lang.String, java.util.List)
+	 */
+	public List getClassNames(String jarfile, List packages) throws Exception{
+		JarFile jar = new JarFile(jarfile);
+		Enumeration entries = jar.entries();
+		ArrayList names = new ArrayList();
+		
+		while(entries.hasMoreElements())
+		{
+			ZipEntry entry = (ZipEntry)entries.nextElement();
+			if(!entry.isDirectory())
+			{
+				String ename = entry.getName();
+				if(
+					ename.endsWith(".class")
+					&&
+					(!	(ename.indexOf('$') >= 0
+							&&
+						Character.isDigit(ename.charAt((ename.indexOf('$') + 1)))))
+					&&
+					matchesSomePackage(ename,packages))
+				{
+					names.add(ename.substring(0,ename.length()-6).replace('/','.'));
+				}
+			}
+		}
+		return names;
+	}
+	boolean matchesSomePackage(String classname, List packages)
+	{
+		for(int i=0;i<packages.size();i++)
+		{
+			String p = (String)packages.get(i);
+			if(classname.startsWith(p)
+				&&
+				(!p.endsWith("/") //recursive, we'll take any below
+				||
+				classname.indexOf("/",p.length()) == -1 //nonSubdirectory
+				))
+				return true;
+		}
+		return false;
+	}
+	
 }

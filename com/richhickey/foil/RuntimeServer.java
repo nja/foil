@@ -231,6 +231,17 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 				//will turn into an exception below
 				errorMesssage = (String)message.get(1);
 				}
+			else if(isMessage(":cnames",message))
+				//(:cnames jarfilename packagename ...)
+				{
+				StringWriter sw = new StringWriter();
+				sw.write("(:ret");
+				marshaller.marshallAsList(
+						reflector.getClassNames((String)message.get(1),message.subList(2,message.size()))
+						,sw,IBaseMarshaller.MARSHALL_ID,1);
+				sw.write(')');
+				resultMessage = sw.toString(); 
+				}			
 			else
 			    {
 			    throw new Exception("unsupported message");
@@ -256,12 +267,14 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 			ex.printStackTrace(new PrintWriter(sw));
 			marshaller.marshallAtom(sw.toString(),outs,0,0);
 			outs.write(')');
+			outs.write('\n');
 			outs.flush();
 			}
 
 		if(resultMessage != null)
 		    {
 		    outs.write(resultMessage);
+			outs.write('\n');
 			outs.flush();
 		    }
 		else if (errorMesssage != null)
@@ -457,6 +470,7 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 		sw.write(')');
 		
 		writer.write(sw.toString());
+		writer.write('\n');
 		writer.flush();
 		
 		

@@ -32,4 +32,5 @@ public interface IReflector
     Object vectorLength(Object v) throws Exception;
 	void setProps(Object o, List nameValuePairs) throws Exception;
 	Object makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,List interfaces)throws Exception;
+	List getClassNames(String jarfile,List packages)throws Exception;
     }
