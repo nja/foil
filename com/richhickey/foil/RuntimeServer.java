@@ -27,17 +27,14 @@ import java.util.List;
 public class RuntimeServer implements IRuntimeServer
     {
 
-    static final int MARSHALL_ID = 1;
-    static final int MARSHALL_TYPE = 1;
-    static final int MARSHALL_HASH = 1;
     
     IReader reader;
 
-    IMarshaller marshaller;
+    IBaseMarshaller marshaller;
 
     IReferenceManager referenceManager;
 
-    public RuntimeServer(IReader reader, IMarshaller marshaller,
+    public RuntimeServer(IReader reader, IBaseMarshaller marshaller,
             IReferenceManager referenceManager)
         {
         this.reader = reader;
@@ -69,7 +66,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    //(:tref "packageQualifiedTypeName")
 			    {
 			    Class c = Class.forName((String)message.get(1));
-				resultMessage = createRetString(c,marshaller,MARSHALL_ID,1);
+				resultMessage = createRetString(c,marshaller,IBaseMarshaller.MARSHALL_ID,1);
 			    }
 			}
 		catch(Exception ex)
@@ -110,11 +107,11 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	    return type.equalsIgnoreCase((String)message.get(0));
 	    }
 	
-	String createRetString(Object o,IMarshaller marshaller,int flags,int depth)
+	String createRetString(Object o,IBaseMarshaller marshaller,int flags,int depth) throws IOException
 	    {
 		StringWriter sw = new StringWriter();
 		sw.write("(:ret");
-		marshaller.marshall(o,sw,marshaller,flags,depth);
+		marshaller.marshallAtom(o,sw,flags,depth);
 		sw.write(')');
 		return sw.toString();
 	    }

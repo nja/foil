@@ -1,5 +1,5 @@
 /*
- * Created on Dec 7, 2004
+ * Created on Dec 10, 2004
  *
  *   Copyright (c) Rich Hickey. All rights reserved.
  *   The use and distribution terms for this software are covered by the
@@ -9,8 +9,10 @@
  * 	 the terms of this license.
  *   You must not remove this notice, or any other, from this software.
  */
+
 package com.richhickey.foil;
 
+import java.io.IOException;
 import java.io.Writer;
 
 /**
@@ -19,7 +21,14 @@ import java.io.Writer;
  * TODO To change the template for this generated type comment go to
  * Window - Preferences - Java - Code Style - Code Templates
  */
-public interface IMarshaller {
-	void marshall(Object o,Writer w, IBaseMarshaller baseMarshaller, int flags,int depth);
+public interface IBaseMarshaller
+    {
+    static final int MARSHALL_ID = 1;
+    static final int MARSHALL_TYPE = 1;
+    static final int MARSHALL_HASH = 1;
 
-}
+	void marshallAtom(Object o,Writer w, int flags,int depth) throws IOException;
+	boolean canMarshallAsList(Object o);
+	void marshallAsList(Object o,Writer w, int flags,int depth) throws IOException;
+	void marshallAsVector(Object o,Writer w, int flags,int depth) throws IOException;
+    }
