@@ -303,11 +303,13 @@ public Object processMessages(TextReader ins,TextWriter outs)
 				marshaller.marshallAtom(sb.ToString(),outs,0,0);
 				marshaller.marshallAtom(String.Format("{0}{1}",sb.ToString(),ex.StackTrace),outs,0,0);
 				outs.Write(')');
+				outs.Write('\n');
 				outs.Flush();
 			}
 			if(resultMessage != null)
 			{
 				outs.Write(resultMessage);
+				outs.Write('\n');
 				outs.Flush();
 			}
 			else if (errorMesssage != null)
@@ -350,6 +352,7 @@ public Object processMessages(TextReader ins,TextWriter outs)
 		sw.Write(')');
 		
 		writer.Write(sw.ToString());
+		writer.Write('\n');
 		writer.Flush();
 		
 		return processMessages(reader,writer);
