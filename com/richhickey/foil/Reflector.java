@@ -8,6 +8,7 @@ package com.richhickey.foil;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.beans.*;
 /**
  * @author Rich
  *
@@ -20,7 +21,44 @@ public class Reflector implements IReflector
     /**
      * @author Rich
      *
+     * TODO To change the template for this generated type comment go to
+     * Window - Preferences - Java - Code Style - Code Templates
      */
+    public class CallableField implements ICallable
+        {
+        Field field;
+        public CallableField(Field field)
+            {
+            this.field = field;
+            }
+        
+        /* (non-Javadoc)
+         * @see com.richhickey.foil.ICallable#invoke(java.lang.Object, java.util.List)
+         */
+        public Object invoke(Object target, List args)
+                throws InvocationTargetException
+            {
+            try{
+                if(args.size() == 0) //get
+                    {
+                    return field.get(target);
+                    }
+                else if(args.size() == 1) //set
+                    {
+                    field.set(target,boxArg(field.getType(),args.get(0)));
+                    return null;
+                    }
+                else 
+                    throw new Exception("invalid number of args passed to field");
+            	}
+            catch(Exception ex)
+            	{	
+            	throw new InvocationTargetException(ex);
+            	}
+            }
+
+        }
+    
     public class CallableMethod implements ICallable
         {
         List methods;
@@ -29,13 +67,14 @@ public class Reflector implements IReflector
         	this.methods = methods;
             }
         
-        public Object invoke(List args) throws InvocationTargetException
+        public Object invoke(Object target, List args) throws InvocationTargetException
             {
-            Object target = args.get(0);
-            args = args.subList(1,args.size());
+//            Object target = args.get(0);
+//            args = args.subList(1,args.size());
             for(Iterator i = methods.iterator();i.hasNext();)
                 {
                 Method m = (Method)i.next();
+                
                 Class[] params = m.getParameterTypes();
                 if(isCongruent(params,args))
                     {
@@ -125,6 +164,12 @@ public class Reflector implements IReflector
         	{
         	case ICallable.METHOD:
         	    return getMethod(c,memberName);
+        	case ICallable.FIELD:
+        	    return getField(c,memberName);
+        	case ICallable.PROPERTY_GET:
+        	    return getPropertyGetter(c,memberName);
+        	case ICallable.PROPERTY_SET:
+        	    return getPropertySetter(c,memberName);
         	default:
         	    throw new Exception("unsupported member type");
         	}
@@ -143,6 +188,48 @@ public class Reflector implements IReflector
             }
         if(methods.size() == 0)
             throw new Exception("no methods found");
+        return new CallableMethod(methods);
+        }
+
+    ICallable getField(Class c,String field)
+	throws Exception
+	    {
+	    Field[] allfields = c.getDeclaredFields();
+	    for(int i=0;i<allfields.length;i++)
+	        {
+	        if(field.equals(allfields[i].getName()))
+			    return new CallableField(allfields[i]);
+	        }
+        throw new Exception("no field found");
+	    }
+
+    ICallable getPropertyGetter(Class c,String property)
+	throws Exception
+        {
+        PropertyDescriptor[] props = Introspector.getBeanInfo(c).getPropertyDescriptors();
+        ArrayList methods = new ArrayList();
+        for(int i=0;i<props.length;i++)
+            {
+            if(property.equals(props[i].getName()))
+                methods.add(props[i].getReadMethod());
+            }
+        if(methods.size() == 0)
+            throw new Exception("no properties found");
+        return new CallableMethod(methods);
+        }
+
+    ICallable getPropertySetter(Class c,String property)
+	throws Exception
+        {
+        PropertyDescriptor[] props = Introspector.getBeanInfo(c).getPropertyDescriptors();
+        ArrayList methods = new ArrayList();
+        for(int i=0;i<props.length;i++)
+            {
+            if(property.equals(props[i].getName()))
+                methods.add(props[i].getWriteMethod());
+            }
+        if(methods.size() == 0)
+            throw new Exception("no properties found");
         return new CallableMethod(methods);
         }
     }

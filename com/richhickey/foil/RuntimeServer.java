@@ -62,7 +62,7 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				ICallable c = (ICallable)message.get(1);
 				int marshallFlags = intArg(message.get(2));
 				int marshallDepth = intArg(message.get(3));
-				Object ret = c.invoke(message.subList(4,message.size()));
+				Object ret = c.invoke(message.get(4),message.subList(5,message.size()));
 				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
 			    }
 			else if(isMessage(":cref",message))

@@ -21,17 +21,17 @@ import java.util.List;
 public interface ICallable {
     
     public final static int METHOD = 0;
-    public final static int FIELD_GET = 1;
-    public final static int FIELD_SET = 2;
+    public final static int FIELD = 1;
+//    public final static int FIELD_SET = 2;
     public final static int PROPERTY_GET = 3;
     public final static int PROPERTY_SET = 4;
-    public final static int STATIC_METHOD = 5;
-    public final static int STATIC_FIELD_GET = 6;
-    public final static int STATIC_FIELD_SET = 7;
-    public final static int STATIC_PROPERTY_GET = 8;
-    public final static int STATIC_PROPERTY_SET = 9;
+//    public final static int STATIC_METHOD = 5;
+//    public final static int STATIC_FIELD_GET = 6;
+//    public final static int STATIC_FIELD_SET = 7;
+//    public final static int STATIC_PROPERTY_GET = 8;
+//    public final static int STATIC_PROPERTY_SET = 9;
 
     
-	Object invoke(List args) throws InvocationTargetException;
+	Object invoke(Object target,List args) throws InvocationTargetException;
 
 }
