@@ -10,6 +10,8 @@
   (:use :common-lisp :lispworks)
   (:export 
 
+   :dump-wrapper-defs
+   :dump-wrapper-defs-to-file
    :def-foil-class
 
    :equals
@@ -60,8 +62,12 @@
 
 #|
 (use-package :foil)
+(load "/foil/java-lang")
+(load "/foil/java-io")
+(load "/foil/java-util")
+(load "/foil/java-sql")
 (setf *fvm* (make-instance 'foreign-vm :lisp-driven-stream (sys:open-pipe "java -Xmx128m -cp c:/dev/foil com.richhickey.foil.RuntimeServer")))
-
+(get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
 |#
 
 (defconstant +marshall-none+ 0)
@@ -119,7 +125,8 @@
    (free-list :initform nil :accessor fvm-free-list)))
 
 (defun send-message (&rest args)
-  (let* ((send-stream (if *in-async-callback*
+  (let* ((*print-length* nil)
+         (send-stream (if *in-async-callback*
                   (fvm-vm-driven-stream *fvm*)
                 (fvm-lisp-driven-stream *fvm*)))
          (free-list (fvm-free-list *fvm*)))
@@ -131,7 +138,7 @@
     (process-return-message)))
 
 (defun free-frefs (strm frefs)
-  (format strm "~S" (cons :free (mapcar #'fref-id frefs)))
+  (format strm "(:free ~{ ~S~})" (mapcar #'fref-id frefs))
   (force-output strm)
   (process-return-message))
 
@@ -521,6 +528,32 @@ static fields also get a symbol-macro *classname.fieldname*"
   "Given the package-qualified, case-correct name of a java class, will generate
 wrapper functions for its constructors, fields and methods."
   `(locally ,@(do-def-foil-class full-class-name)))
+
+
+(defun dump-wrapper-defs-to-file (filename classnames)
+  "given a list of classnames (e.g. from get-jar-classnames or get-assembly-classnames), writes
+the expansions of def-foil-class to a file. 
+The resulting file will not need a VM running to either compile or load"
+  (with-open-file (s filename :direction :output :if-exists :supersede)
+    (dump-wrapper-defs s classnames)))
+
+(defun dump-wrapper-defs (strm classnames)
+  (let ((forms nil)
+        (ensures nil)
+        (exports (make-hash-table :test #'equal)))
+    (dolist (name (sort classnames #'string-lessp))
+      (let ((defs (do-def-foil-class name)))
+        (dolist (def defs)
+          (case (car def) 
+            ('ensure-package (push def ensures))
+            ('export (push (second def) (gethash (third def) exports)))
+            (t (push def forms))))))
+    (format strm "~{~S~%~}~{~S~%~}"
+            (remove-duplicates ensures :test #'string-equal :key #'second)
+            (nreverse forms))
+    (maphash (lambda (package syms)
+               (format strm "(export '~S ~S)" (mapcar #'second syms) package))
+             exports)))
 
 ;;;;;;;;;;;;;;;;;;;;boxing ;;;;;;;;;;;;;;;;;;;;;;;;;
 
