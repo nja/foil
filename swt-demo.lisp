@@ -13,15 +13,14 @@
   :init-display
   :run-ui
   :swt-apropos
-  :show-shell
-  :show-shell-2))
+  ))
 (in-package :swt-demo)
 
 ;presumes swt-aware java server running on 2 ports, first will be ui
 
 (defvar *ui-stream*)
 (defvar *non-ui-stream*)
-(defvar *display*)
+(defvar *display* nil)
 
 (setf *ui-stream* (comm:open-tcp-stream "localhost" 13578))
 (setf *non-ui-stream* (comm:open-tcp-stream "localhost" 13579))
@@ -34,32 +33,6 @@
   (let ((*thread-fvm* *fvm*)
         (*thread-fvm-stream* *ui-stream*))
     (setf *display* (make-new display.))))
-
-(defun show-shell ()
-  (let* ((*thread-fvm* *fvm*)
-         (*thread-fvm-stream* *ui-stream*)
-         (shell (make-new shell. *display* :text "Using SWT from Lisp"))
-         (button (make-new button. shell *SWT.CENTER* :text "Call Lisp"))
-         (listener (make-new-proxy +MARSHALL-ID+ 1 mouselistener. selectionlistener.)))
-    (shell.setsize shell 300 200)
-    (shell.setlocation shell 100 100)
-    (button.setsize button 200 100)
-    (button.setlocation button 40 40)
-    (button.addmouselistener button listener)
-    (button.addselectionlistener button listener)
-    (let ((mp:*process-initial-bindings*
-           (append '((*standard-output* . *standard-output*)
-                     (*fvm* . *fvm*)
-                     (*thread-fvm-stream* . *thread-fvm-stream*)
-                     (*thread-fvm* . *thread-fvm*))
-                     mp:*process-initial-bindings*)))
-      #+nil(|com.richhickey.foil|::swthelper.rundispatchloop *display* shell)
-      (mp:process-run-function
-       "swt-proc" '()
-       (lambda ()
-         (|com.richhickey.foil|::swthelper.rundispatchloop *display* shell)))
-      shell)))
-
 
 (defun run-ui (fn)
   (let ((mp:*process-initial-bindings*
@@ -154,23 +127,5 @@
       ;launch
       (|com.richhickey.foil|::swthelper.rundispatchloop *display* shell))))
 
-(defun show-shell-2 ()
-  (let* ((shell (make-new shell. *display* :text "Using SWT from Lisp"))
-         (button (make-new button. shell *SWT.CENTER* :text "Call Lisp"))
-         (listener (new-proxy p +MARSHALL-ID+ 1
-                              (selectionlistener.
-                               (widgetselected (ev)
-                                               (setf (button.text button) "woo hoo!")
-                                               nil)))))
-    (shell.setsize shell 300 200)
-    (shell.setlocation shell 100 100)
-    (button.setsize button 200 100)
-    (button.setlocation button 40 40)
-    (button.addselectionlistener button listener)
-    (|com.richhickey.foil|::swthelper.rundispatchloop *display* shell)))
-
-
-(defmethod handle-proxy-call ((method (eql 'selectionlistener.widgetselected)) proxy &rest args)
-  (let* ((ev (first args))
-        (button (cdr (assoc :source (fref-val ev)))))
-    (setf (button.text button) "Hello from Lisp")))
+(init-display)
+(run-ui #'swt-apropos)
