@@ -1,4 +1,5 @@
 ; Load the defsystem files for foil and foilcli
+(defvar *dev-path* "/dev")
 (defun load-foilcli-defsys (&key (compile t) (load t))
   (flet ((p-name (def-path)
            (format nil "~A/~A" (or *dev-path* (get-working-directory)) def-path)))

@@ -437,6 +437,8 @@ and change-classes to a typed reference wrapper"
           ;build a path from the simple class symbol to the canonic
                `(defconstant ,class-sym ',(canonic-class-symbol full-class-name))
                `(export ',class-sym ,package)
+               `(setf (get ',class-sym :member-type) :type-name)
+               `(setf (get ',class-sym :full-class-name) ,full-class-name)
                ;`(def-java-constructors ,full-class-name)
                ;`(def-java-methods ,full-class-name)
                ;`(def-java-fields ,full-class-name)
@@ -521,6 +523,8 @@ make-new specialized on the class-symbol"
           ,(format nil "~{~A~%~}" ctor-list)
           (call-ctor ',class-sym args))
         (export ',ctor-sym ,package)
+        (setf (get ',ctor-sym :member-type) :ctor)
+        (setf (get ',ctor-sym :full-class-name) ,full-class-name)
         (defmethod make-new ((class-sym (eql ',class-sym)) &rest args)
           (apply (function ,ctor-sym) args))))))
 
@@ -567,7 +571,10 @@ make-new specialized on the class-symbol"
                     (foil-call-method ',class-sym ,name ',method-sym this args)))
                defs)
          (push `(export ',method-sym ,package)
-               defs)))
+               defs)
+        (push `(setf (get ',method-sym :member-type) ,(if is-static :static-method :method)) defs)
+        (push `(setf (get ',method-sym :full-class-name) ,full-class-name) defs)
+        (push `(setf (get ',method-sym :member-name) ,name) defs)))
      methods-by-name)
     (nreverse defs)))
 
@@ -605,6 +612,9 @@ static fields also get a symbol-macro *classname.fieldname*"
                        (call-field ',class-sym ,field-name ',field-sym nil val))
                     defs)
               (push `(export ',field-sym ,package) defs)
+              (push `(setf (get ',field-sym :member-type) :static-field) defs)
+              (push `(setf (get ',field-sym :full-class-name) ,full-class-name) defs)
+              (push `(setf (get ',field-sym :member-name) ,field-name) defs)
               (push `(define-symbol-macro ,macsym (,field-sym)) defs)
               (push `(export ',macsym ,package) defs))
           (progn
@@ -615,7 +625,10 @@ static fields also get a symbol-macro *classname.fieldname*"
             (push `(defun (setf ,field-sym) (val obj)
                      (call-field ',class-sym ,field-name ',field-sym obj val))
                   defs)
-            (push `(export ',field-sym ,package) defs)))))
+            (push `(export ',field-sym ,package) defs)
+            (push `(setf (get ',field-sym :member-type) :field) defs)
+            (push `(setf (get ',field-sym :full-class-name) ,full-class-name) defs)
+            (push `(setf (get ',field-sym :member-name) ,field-name) defs)))))
     (nreverse defs)))
 
 (defun call-prop-get (class-sym name method-sym this args)
@@ -646,9 +659,11 @@ static fields also get a symbol-macro *classname.fieldname*"
              (get-doc (format nil "~{~A~%~}" (mapcar (lambda (p)
                                                    (find-tag-atom :get-doc p))
                                                  props)))
+             (get-function (some (lambda (prop) (find-tag-atom :get-function prop)) props))
              (set-doc (format nil "~{~A~%~}" (mapcar (lambda (p)
                                                    (find-tag-atom :set-doc p))
-                                                 props))))
+                                                 props)))
+             (set-function (some (lambda (prop) (find-tag-atom :set-function prop)) props)))
          (when getter-sym
              (push (if is-static
                    `(defun ,method-sym (&rest args)
@@ -667,8 +682,13 @@ static fields also get a symbol-macro *classname.fieldname*"
                         ,set-doc
                         (call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
                    defs))
-         (push `(export ',method-sym ,package)
-               defs)))
+         (push `(export ',method-sym ,package) defs)
+         (push `(setf (get ',method-sym :member-type) ,(if is-static :static-property :property)) defs)
+         (push `(setf (get ',method-sym :full-class-name) ,full-class-name) defs)
+         (when get-function
+           (push `(setf (get ',method-sym :getter-name) ,get-function) defs))
+         (when set-function
+           (push `(setf (get ',method-sym :setter-name) ,set-function) defs))))
      props-by-name)
     (nreverse defs)))
 

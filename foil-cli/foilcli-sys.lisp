@@ -1,3 +1,4 @@
+(defvar *dev-path* "/dev")
 (flet (( p-name (def-path)
          (format nil "~A/~A" (or *dev-path* (get-working-directory)) def-path)))
   (defsystem foilcli-sys
