@@ -747,8 +747,7 @@ The resulting file will not need a VM running to either compile or load"
                  (send-message :hash fref))))
 
 (defun marshall (fref)
-  (setf (fref-val fref)
-               (send-message :marshall fref *marshalling-flags* *marshalling-depth*)))
+  (send-message :marshall fref *marshalling-flags* *marshalling-depth*))
 
 ;;;;;;;;;;;;;;;;;;; proxies ;;;;;;;;;;;;;;;;;;;;;;;;;
 
