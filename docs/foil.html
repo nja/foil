@@ -116,12 +116,14 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 	</ul>
 
 
-	<a name="download"></a> <h3>Download</h3>
+	<a name="download"></a> <h3>Download and Communication</h3>
 
 	<p>
 	<a href="http://sourceforge.net/projects/foil/">Foil is hosted on SourceForge</a> 
     <a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=125543&amp;type=1"
 				width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
+    We are going to try using SourceForge facilities for all communication regarding Foil, 
+    so please use the project tracker and forums there.
 	</p>
 
 
@@ -228,7 +230,58 @@ its most fully derived type in Lisp, works in place, using <code>change-class</c
 					packages as described above.
 				</li>
 			</ul>
+
 		</li>
+				<li>
+            			<strong>Function</strong> <code>(get-jar-classnames jar-file-name &rest packages) 
+			-> list-of-strings</code>
+			<p>
+			Returns a list of class name strings. Packages should be strings of the form "java/lang 
+			 " for recursive lookup and "java/util/" (note trailing slash) for non-recursive. This function
+                    is in foil-java.lisp and is only for Java.
+			</p>
+				</li>
+				<li>
+            			<strong>Function</strong> <code>(get-assembly-classnames assembly-file-name &rest packages) 
+			-> list-of-strings</code>
+			<p>
+			Returns a list of class name strings.  Assemblies should be of the form "System/IO"
+  for recursive lookup and "System/IO/" for non-recursive (note trailing slash). This function
+                    is in foil-cli.lisp and is only for the CLI.
+			</p>
+				</li>
+		<li>
+			<strong>Function</strong> <code>(dump-wrapper-defs-to-file filename classnames)  -> 
+			unspecified</code>
+			<p>
+			Given a list of classnames (say from <code>get-jar-classnames</code> or <code>get-assembly-classnames</code>), writes 
+			the consolidated expansions of calls to <code>def-foil-class</code> to a file:
+			</p>
+			<pre>
+(dump-wrapper-defs-to-file "/lisp/java-lang.lisp"
+  (get-jar-classnames "/j2sdk1.4.2_01/jre/lib/rt.jar " "java/lang/"))
+(compile-file "/lisp/java-lang")
+(load "/lisp/java-lang")
+(use-package "java.lang")
+;Wrappers for all of java.lang are now available
+</pre>
+            This is the recommended way to access entire library packages. In particular, it has the advantage that the dumped
+            code does not require a foreign runtime to either compile or load.
+		</li>
+</ul>
+
+		<a name="objectservices"></a> <h3>Object Services</h3>
+
+	    <ul>
+				<li>
+            			<strong>Function</strong> <code>(equals fref1 fref2) 
+			-> boolean</code>
+			<p>
+			Portable Object.equals
+            </p>
+				</li>
+
+        </ul>
 
 <h2>Protocol</h2>
 
