@@ -39,6 +39,9 @@
 
 
 (defun gen-wrappers ()
+;/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Classes/classes.jar
+#+nil(dump-wrapper-defs-to-file "~/foil/swt.lisp" (get-jar-classnames "/Users/rich/downloads/eclipse/plugins/org.eclipse.swt.carbon_3.0.0/ws/carbon/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/swt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
+
   (dump-wrapper-defs-to-file "/foil/java-lang.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/"))
   (dump-wrapper-defs-to-file "/foil/java-util.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/util/"))
   (dump-wrapper-defs-to-file "/foil/java-io.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/io/"))
