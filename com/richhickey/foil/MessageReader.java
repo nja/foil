@@ -15,6 +15,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Array;
 import java.util.List;
 import java.util.*;
 
@@ -111,9 +112,51 @@ public class MessageReader implements IReader
 	    }
 	
 	Object processMacroList(List args)
+		throws Exception
 	    {
 	    //TODO handle {:box ... and {:array ...
-	    return null;
+	    if(RuntimeServer.isMessage(":box",args))
+	        {
+	        return numericConvert(args.get(1),args.get(2));
+	        }
+	    else if(RuntimeServer.isMessage(":array",args))
+	        {
+	        
+	        }
+       throw new Exception("unsupported macro sequence");
+	    }
+	
+	static Object numericConvert(Object targetType,Object num)
+	throws Exception
+	    {
+        Number n = (Number)num;
+        String target = (String)targetType;
+        if(target.equalsIgnoreCase(":int"))
+            {
+            return new Integer(n.intValue());
+            }
+        else if(target.equalsIgnoreCase(":double"))
+            {
+            return new Double(n.doubleValue());
+            }
+        else if(target.equalsIgnoreCase(":long"))
+            {
+            return new Long(n.longValue());
+            }
+        else if(target.equalsIgnoreCase(":float"))
+            {
+            return new Float(n.floatValue());
+            }
+        else if(target.equalsIgnoreCase(":short"))
+            {
+            return new Short(n.shortValue());
+            }
+        else if(target.equalsIgnoreCase(":byte"))
+            {
+            return new Byte(n.byteValue());
+            }
+        throw new Exception("unsupported numeric box type");
+	    
 	    }
 	
     static protected String readString(Reader strm)

@@ -133,13 +133,12 @@ Sendable messages:
 				for instance.
 
 			<p><h4>Boxed Primitives</h4>
-				Occasionally it may be necessary to provide a hint as to the intended type of an argument in order to force resolution
-				to a particular overload.
+				Occasionally it may be necessary to provide a hint as to the intended type of a numeric argument in order to 
+				force resolution to a particular overload.
 
 				<p><code>#{:box typename value}</code><br>
 
-				<p>Where typename is the name of the Object representation of a primitive/value type (Float/Single, Integer/Int32 etc)??
-                <p>Where typename is the keywordized name of the type in the native language of the runtime (C#/Java) i.e. :int :long :short :float etc.
+                <p>Where typename is one of :byte :int :long :short :float :double
 				<p>Return values should never be boxed??<br>
 
 			<p><h4>Array Literals</h4>
