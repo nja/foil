@@ -1,6 +1,9 @@
 <html>
+<head>
+	<link rel="stylesheet" type="text/css" media="screen" href="foil.css">
+</head>
 <body>
-<h1>Foil - a Foreign Object Interface for Lisp</h1>
+<h2>Foil - a Foreign Object Interface for Lisp</h2>
 	<h5>Copyright (c) Rich Hickey and Eric Thorsen. All rights reserved.</h5>
 
 	<p>
@@ -11,12 +14,222 @@
 	other, from this software.
 	</p>
 
-<h2>Description</h2>
+<h2>Description and Rationale</h2>
+
+Foil consists of a protocol, and a set of libraries, that facilitate 
+access to popular object runtimes, such as the JVM and the CLI/CLR, and 
+their libraries, from Lisp.  A protocol is defined which abstracts out the 
+common features provided by Java-like environments - object construction, 
+method, field, and property access, object lifetime management etc.  The 
+protocol defines a set of features as well as an s-expression based stream 
+format for communication.  Runtime server applications are provided that 
+utilize Java and C# libraries to implement the object runtime side of the 
+protocol for Java and the CLI.  Source for the applications is provided so 
+that custom hosts can be built.  A library for Common Lisp is provided 
+that implements the consumer side of the protocol, and provides seamless 
+access to the foreign objects in a Lisp-like manner.  
+
+The design of Foil owes much to jfli, an in-process solution to the same 
+problem for Java, and it remains extremely similar in the Lisp interface.  
+Several factors motivated the significant difference in the Foil design -
+its use of an out-of-process instance of the foreign runtime: 
+
+<ul>
+<li>jfli did not see wide porting, due to its use of LispWorks' sophisticated FLI to access JNI</li>
+<li>I found that I needed to access already-running instances of the JVM, for instance servlet containers, as done in Lisplets</li>
+<li>I wanted to access the CLR/CLI in a similar fashion</li>
+</ul>
+
+The major tradeoff in stream-based access to out-of-proc runtimes is a 
+significant drop in per-call performance.  However, even with jfli, which 
+was very fast, the overhead of reflection per call could be high in 
+certain scenarios, since the APIs of these platforms tend to be very 
+'chatty'.  Foil includes a marshalling system that allows for efficient 
+transfer of large and composite objects with minimal call overhead, in a 
+manner that doesn't pollute the Lisp code on the consumer side.  
+
+Foil provides all the facilities of jfli and more. 
+
+Some of the additions are:
+
+<ul> 
+	<li>(Hopefully) Much improved portability (n.b. it has not been ported, but is mostly standard CL)
+	<li>Access to the CLR with the same API</li> 
+	<li>Support for CLR and JavaBean properties</li>
+	<li>Simultaneous access to multiple runtimes</li>
+	<li>Simultaneous access to the CLR and Java</li>
+	<li>A marshalling system, which can, in a single call, pull across the types, hashcodes, and/or values of 
+reference objects to an arbitrary depth, with user customizable value marshallers.</li> 
+	<li>All references to the same remote object are eq on the Lisp side</li> 
+	<li><code>ensure-typed-ref</code>, which makes a remote reference 
+its most fully derived type in Lisp, works in place, using <code>change-class</code></li> 
+	<li>vector argument boxing, so lightweight vectors-as-arguments can be created in-place 
+		without the overhead of multiple calls to create and initialize the vector</li>
+	<li>keyword-style init of properties in constructor calls is supported by the ctor functions, and can be leveraged 
+		in apply and mapping scenarios (this feature was previously limited to the new macro)</li>
+</ul>
+
+
+Features of jfli that are retained/enhanced:
+
+	<ul>
+
+		<li>
+			Automatic function generation for constructors, fields, methods, and properties either by 
+			named class, or entire package (sub)trees given a jar file or assembly name.
+		</li>
+
+		<li>
+			Java/CLI -> Lisp package and name mapping with an eye towards lack of surprise, lack 
+			of conflict, and useful editor completion.
+		</li>
+
+		<li>
+			setf-able setter generation for fields and properties		</li>
+
+		<li>
+			Java/CLI vector creation and aref-like access to Java/CLI vectors.
+		</li>
+
+		<li>
+			Constructors that allow for keyword-style property initialization.
+		</li>
+
+		<li>
+			Typed references to Java/CLI objects with an inheritance hierarchy on the Lisp side 
+			mirroring that on the Java/CLI side - allowing for Lisp methods specialized on Java/CLI 
+			class and interface types.
+		</li>
+
+		<li>
+			Implementation of arbitrary Java/CLI interfaces in Lisp, and callbacks from Java/CLI to 
+			Lisp via those interfaces. </li>
+
+		<li>
+			Automatic lifetime maintenance of Lisp-referenced Java/CLI objects, boxing/unboxing 
+			of primitive args/returns, string conversions, Java/CLI exception handling, overload 
+			resolution etc.
+		</li>
+	</ul>
+
+
+	<a name="download"></a> <h3>Download</h3>
+
+	<p>
+	Foil is hosted on <a href="http://sourceforge.net/projects/foil/">SourceForge</a>
+	</p>
+
+
+	<a name="api"></a> <h2>API Reference</h2>
+		<a name="wrappergen"></a> <h3>Wrapper Generation</h3>
+
+	<ul>
+		<li>
+			<strong>Macro</strong> <code>(def-foil-class full-class-name) -> unspecified</code>
+			<p>
+			Given the package-qualified, case-correct name of a Java/CLI class as a string, will 
+			generate wrapper functions for its public constructors, fields, properties and methods.
+			</p>
+			<p>
+			The core API for generating interfaces to Java/CLI is the <code>def-foil-class</code> macro. This 
+			macro will, at expansion time, use Java/CLI reflection to find all of the public 
+			constructors, fields, properties and methods of the given class and generate functions to 
+			access them.
+			</p>
+			<h4>The Generated API</h4> 
+			When you e.g. <code>(def-foil-class "java.lang.ClassName")</code> 
+			you get several symbols/functions:
+			<ul>
+				<li>
+					A package named <code>|java.lang|</code> (note case)<br>
+					from which the following are exported:
+				</li>
+				<li>
+					A class-symbol: <code>classname.</code> (note the dot is part of the name)<br>
+					which can usually be used where a typename is required. It also serves as the 
+					name of the Lisp typed reference class.
+				</li>
+				<li>
+					Every non-interface class with a public constructor will get;
+					<ul>
+						<li>
+							A constructor, <code>(classname.new &rest args) -> fref</code>, which 
+							returns a foreign-reference (fref) to the newly created object. Note that the constructor function,
+							and therefor everything built upon it, can take the actual arguments to the Java/CLI ctor, followed by
+							zero or more porperty initializers, which take the form:<br>
+							:keywordized-propertyname value<br>
+							e.g. <code>(window.new parent :width 200 :height 200)</code> <br>
+							thus supporting the creation and setup of a new object in a single call
+
+						</li>
+						<li>
+							A method defined on <a href=#makenew><code>make-new</code></a>, ultimately 
+							calling <code>classname.new</code>, specialized on (the value of) the class-symbol
+						</li>
+					</ul>
+					Note that if the constructor is overloaded, there is just one function generated, 
+					which handles overload resolution. The function documentation string describes 
+					the constructor signature(s) from the Java/CLI perspective. The same argument 
+					conversions are performed as are for fields (see below).
+				</li>
+				<li>
+					All public fields will get a getter function:<br>
+					<code>(classname.fieldname [instance]) -> field value</code><br>
+					and a setter:<br>
+					<code>(setf classname.fieldname [instance])</code><br>
+					Instance field wrappers take a first arg which is the instance. Static fields 
+					get a symbol-macro <code>*classname.fieldname*</code>
+					<p>
+					If the type of the field is primitive, the field value will be converted to a 
+					native Lisp value. If it is a Java/CLI String, it will be converted to a Lisp string. 
+					Otherwise, a foreign reference to the Java/CLI object is returned. Similarly, when 
+					setting, Lisp values will be accepted for primitives, Lisp strings for Strings, 
+					or foreign references for reference types.
+					</p>
+				</li>
+				<li>
+					All public properties (explicit properties in the case of the CLI, 
+					implied properties in the case of Java as specified by the JavaBeans protocol) 
+					will get a getter function if the property supports get:<br>
+					<code>(classname.propertyname [instance] [args]) -> property value</code><br>
+					and a setter if the property supports set:<br>
+					<code>(setf classname.propertyname [instance] [args])</code><br>
+					Instance property wrappers take a first arg which is the instance. Static properties 
+					get a symbol-macro <code>*classname.propertyname*</code>
+				</li>
+				<li>
+					Every public method will get a wrapper function:<br>
+					<code>(classname.methodname &rest args) -> return-value</code><br>
+					As with constructors, if a method is overloaded a single wrapper is created that 
+					handles overload resolution. 
+					<p>
+					The same argument and return value conversions are performed as are for fields. 
+					The function documentation string describes the method signature(s) from the 
+					Java/CLI perspective.
+					</p>
+
+				</li>
+				<li>
+					A Lisp class with the class-symbol as its name. It will have as its superclasses 
+					other Lisp classes corresponding to the Java/CLI superclass/superinterfaces, some of 
+					which may be forward-referenced-classes.  An instance of this class will be 
+					returned by <code>ensure-typed-ref</code>, at which point the entire hierarchy will 
+					consist of finalized standard-classes.
+				</li>
+				<li>
+					Note that, due to the need to reference other Java/CLI types during the definition 
+					of a class wrapper, symbols, classes, and packages relating to those other types 
+					may also be created. In all cases they will be created with names and 
+					packages as described above.
+				</li>
+			</ul>
+		</li>
 
 <h2>Protocol</h2>
 
-The foil protocol describes the on-stream interface between a Lisp instance and a runtime instance,
-and should not be confused with the foil library which provides the interface to the protocol for Common Lisp.
+The foil protocol describes the on-stream interface between a Lisp 
+instance and a runtime instance, and should not be confused with the foil 
+library which provides the interface to the protocol for Common Lisp.  
 
 <h3>Connection Services</h3> 
 
