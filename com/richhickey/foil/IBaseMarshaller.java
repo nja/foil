@@ -21,6 +21,7 @@ import java.io.Writer;
  */
 public interface IBaseMarshaller
     {
+    static final int MARSHALL_NONE = 0;
     static final int MARSHALL_ID = 1;
     static final int MARSHALL_TYPE = 2;
     static final int MARSHALL_HASH = 4;

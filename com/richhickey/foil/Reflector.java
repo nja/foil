@@ -268,43 +268,11 @@ public class Reflector implements IReflector
         }
 
     /* (non-Javadoc)
-     * @see com.richhickey.foil.IReflector#reflect(java.lang.Class, java.io.Writer)
+     * @see com.richhickey.foil.IReflector#members(java.lang.Class, java.io.Writer)
      */
-    public void reflect(Class c, Writer w) throws Exception
+    public void members(Class c, Writer w) throws Exception
         {
         w.write(" (");
-        
-        w.write("(:class");
-        baseMarshaller.marshallAtom(c,w,IBaseMarshaller.MARSHALL_ID,1);
-        w.write(')');
-
-        ArrayList supers = new ArrayList();
-        if(c.isInterface())
-            supers.add(Object.class);
-        else
-            supers.add(c.getSuperclass());
-        Class[] interfaces = c.getInterfaces();
-        for(int i=0;i<interfaces.length;i++)
-            {
-            Class inter = interfaces[i];
-            boolean placed = false;
-            for(int p=0;!placed && p<supers.size();p++)
-                {
-                Class s = (Class)supers.get(p);
-                if(s.isAssignableFrom(inter))
-                    {
-                    supers.add(p,inter);
-                    placed =true;
-                    }
-                }
-            if(!placed)
-                supers.add(inter);
-                
-            }
-        w.write("(:bases");
-        for(int p=0;p<supers.size();p++)
-            baseMarshaller.marshallAtom(supers.get(p),w,IBaseMarshaller.MARSHALL_ID,1);
-        w.write(')');
         
         Constructor[] ctors = c.getConstructors(); 
         if(ctors.length > 0)
@@ -313,8 +281,9 @@ public class Reflector implements IReflector
             for(int i=0;i<ctors.length;i++)
                 {
                 Constructor ctor = ctors[i];
-                Class[] params = ctor.getParameterTypes();
-                reflectParams(params,w);
+                baseMarshaller.marshallAtom(ctor.toString(),w,0,0);
+                //Class[] params = ctor.getParameterTypes();
+                //reflectParams(params,w);
                 }
             w.write(')');
             }
@@ -326,22 +295,29 @@ public class Reflector implements IReflector
             for(int i=0;i<methods.length;i++)
                 {
                 Method method = methods[i];
-                w.write("(:mref ");
-                baseMarshaller.marshallAtom(method,w,IBaseMarshaller.MARSHALL_ID,0);
-                w.write(')');
+                w.write('(');
+                
+//                w.write("(:mref ");
+//                baseMarshaller.marshallAtom(method,w,IBaseMarshaller.MARSHALL_ID,0);
+//                w.write(')');
                 
                 w.write("(:name ");
                 baseMarshaller.marshallAtom(method.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                 w.write(')');
 
-                if(Modifier.isStatic(method.getModifiers()))
+                //if(Modifier.isStatic(method.getModifiers()))
                     {
-                    w.write("(:is-static ");
-                    baseMarshaller.marshallAtom(Boolean.TRUE,
+                    w.write("(:static ");
+                    baseMarshaller.marshallAtom(Modifier.isStatic(method.getModifiers())?Boolean.TRUE:Boolean.FALSE,
                         					w,IBaseMarshaller.MARSHALL_ID,0);
                     w.write(')');
                     }
-                reflectMethodSignature(method,w);
+//                reflectMethodSignature(method,w);
+                    w.write("(:doc ");
+                    baseMarshaller.marshallAtom(method.toString(),w,IBaseMarshaller.MARSHALL_ID,0);
+                    w.write(')');
+               
+                w.write(')');
                 }
             w.write(')');
             }
@@ -353,23 +329,25 @@ public class Reflector implements IReflector
             for(int i=0;i<fields.length;i++)
                 {
                 Field field = fields[i];
+                w.write('(');
                 
                 w.write("(:name ");
                 baseMarshaller.marshallAtom(field.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                 w.write(')');
 
-                if(Modifier.isStatic(field.getModifiers()))
+                //if(Modifier.isStatic(field.getModifiers()))
                     {
-	                w.write("(:is-static ");
-	                baseMarshaller.marshallAtom(Boolean.TRUE,
+	                w.write("(:static ");
+	                baseMarshaller.marshallAtom(Modifier.isStatic(field.getModifiers())?Boolean.TRUE:Boolean.FALSE,
 	                        					w,IBaseMarshaller.MARSHALL_ID,0);
 	                w.write(')');
                     }
 
-                w.write("(:type ");
-                baseMarshaller.marshallAtom(field.getType(),w,IBaseMarshaller.MARSHALL_ID,1);
+                w.write("(:doc ");
+                baseMarshaller.marshallAtom(field.toString(),w,IBaseMarshaller.MARSHALL_ID,1);
                 w.write(')');
 
+                w.write(')');
                 }
             w.write(')');
             }
@@ -381,32 +359,34 @@ public class Reflector implements IReflector
             for(int i=0;i<props.length;i++)
                 {
                 PropertyDescriptor prop = props[i];
-                
+                w.write('(');
+
                 w.write("(:name ");
                 baseMarshaller.marshallAtom(prop.getName(),w,IBaseMarshaller.MARSHALL_ID,0);
                 w.write(')');
 
                 //only create this section if static
                 //never true for Java
-//                w.write("(:is-static ");
-//                baseMarshaller.marshallAtom(Boolean.FALSE,
-//                        					w,IBaseMarshaller.MARSHALL_ID,0);
-//                w.write(')');
+                w.write("(:static ");
+                baseMarshaller.marshallAtom(Boolean.FALSE,
+                        					w,IBaseMarshaller.MARSHALL_ID,0);
+                w.write(')');
 
                 Method readm = prop.getReadMethod();
                 if(readm != null)
                     {
-                    w.write("(:get ");
-                    reflectMethodSignature(readm,w);
+                    w.write("(:get-doc ");
+                    baseMarshaller.marshallAtom(readm.toString(),w,IBaseMarshaller.MARSHALL_ID,0);
                     w.write(')');
                     }
                 Method setm = prop.getWriteMethod();
                 if(setm != null)
                     {
-                    w.write("(:set ");
-                    reflectMethodSignature(setm,w);
+                    w.write("(:set-doc ");
+                    baseMarshaller.marshallAtom(setm.toString(),w,IBaseMarshaller.MARSHALL_ID,0);
                     w.write(')');
                     }
+                w.write(')');
                 }
 
             w.write(')');
@@ -566,4 +546,37 @@ public class Reflector implements IReflector
             }
         throw new Exception("can't find property");
 	    }
+
+    /* (non-Javadoc)
+     * @see com.richhickey.foil.IReflector#bases(java.lang.Class)
+     */
+    public List bases(Class c) throws Exception
+        {
+        ArrayList supers = new ArrayList();
+        if(c.isInterface())
+            supers.add(Object.class);
+        else if(c.getSuperclass() != null)
+            supers.add(c.getSuperclass());
+        Class[] interfaces = c.getInterfaces();
+        for(int i=0;i<interfaces.length;i++)
+            {
+            Class inter = interfaces[i];
+            boolean placed = false;
+            for(int p=0;!placed && p<supers.size();p++)
+                {
+                Class s = (Class)supers.get(p);
+                if(s.isAssignableFrom(inter))
+                    {
+                    supers.add(p,inter);
+                    placed =true;
+                    }
+                }
+            if(!placed)
+                supers.add(inter);
+                
+            }
+        for(int i=0;i<supers.size();i++)
+            supers.set(i,((Class)supers.get(i)).getName());
+        return supers;
+        }
 }

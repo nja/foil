@@ -43,7 +43,8 @@ Sendable messages:
 	<li>(:is-a</li>
 	<li>(:str</li>
 	<li>(:tref</li>
-	<li>(:reflect</li>
+	<li>(:bases</li>
+	<li>(:members</li>
 	<li>(:vector</li>
 	<li>(:vget</li>
 	<li>(:vset</li>
@@ -230,25 +231,27 @@ Sendable messages:
 
 	<p><code>(:is-a ref tref)</code> -> t|nil<br>
 
-	<p><code>(:reflect tref|"packageQualifiedTypeName")</code><br>
+	<p><code>(:bases tref|"packageQualifiedTypeName")</code><br>
+<pre>
+-> (:ret ("packageQualifiedTypeName" ...))    ;most-derived to least-derived
+</pre>
+
+
+	<p><code>(:members tref|"packageQualifiedTypeName")</code><br>
 
 	<code>
 <pre>
-(:ret (	(:class tref)
-        (:bases tref ...) ;most-derived to least-derived
-        (:ctors (:args ((:name string)(:type tref)) ...) ...)
-        (:methods ((:mref mref)
-                   (:name string)
-                   (:is-static bool)
-                   (:args ((:name string)(:type tref)) ...)
-                   (:ret tref)) ...)
+-> (:ret ( (:ctors doc-string ...)
+        (:methods ((:name string)
+                   (:static bool)
+                   (:doc doc-string)) ...)
         (:fields ((:name string)
-                  (:is-static bool)
-                  (:type tref)) ...)
+                  (:static bool)
+                  (:doc doc-string)) ...)
         (:properties ((:name string)
-                      (:is-static bool)
-                      (:get (:args ((:name string)(:type tref)) ...) (:ret tref))
-                      (:set (:args ((:name string)(:type tref)) ...) (:ret tref))) ...)))</pre></code>
+                      (:static bool)
+                      (:get-doc doc-string)
+                      (:set-doc doc-string)) ...)))</pre></code>
 
 <h3>Vectors</h3>
 	Creating an vector:<br>

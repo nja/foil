@@ -24,7 +24,8 @@ public interface IReflector
      */
     ICallable getCallable(int memberType, Class c, String memberName) throws Exception;
     Object createNew(Class c, List args) throws Exception;
-    void reflect(Class c,Writer w) throws Exception;
+    void members(Class c,Writer w) throws Exception;
+    List bases(Class c) throws Exception;
     Object createVector(Class c,int length,List inits) throws Exception;
     Object vectorGet(Object v,int index) throws Exception;
     void vectorSet(Object v,int index,Object val) throws Exception;

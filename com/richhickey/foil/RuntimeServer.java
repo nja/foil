@@ -147,6 +147,16 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				Object ret = reflector.vectorLength(message.get(1));
 				resultMessage = createRetString(ret,marshaller,0,0);
 			    }
+			else if(isMessage(":bases",message))
+			    //(:bases tref|"packageQualifiedTypeName")
+			    {
+			    Class c = typeArg(message.get(1));
+				StringWriter sw = new StringWriter();
+				sw.write("(:ret");
+				marshaller.marshallAsList(reflector.bases(c),sw,IBaseMarshaller.MARSHALL_ID,1);
+				sw.write(')');
+				resultMessage = sw.toString(); 
+			    }
 			else if(isMessage(":type-of",message))
 			    //(:type-of ref)
 			    {
@@ -165,13 +175,13 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			    {
 				resultMessage = createRetString(new Integer(message.get(1).hashCode()),marshaller,0,0);
 			    }
-			else if(isMessage(":reflect",message))
-			    //(:reflect tref|"packageQualifiedTypeName")
+			else if(isMessage(":members",message))
+			    //(:members :tref|"packageQualifiedTypeName")
 			    {
 			    Class c = typeArg(message.get(1));
 				StringWriter sw = new StringWriter();
 				sw.write("(:ret");
-				reflector.reflect(c,sw);
+				reflector.members(c,sw);
 				sw.write(')');
 				resultMessage = sw.toString(); 
 			    }
