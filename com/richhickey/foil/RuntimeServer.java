@@ -435,7 +435,7 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 		
 		marshaller.marshallAtom(proxy,sw,IBaseMarshaller.MARSHALL_ID,0);
 		
-		for(int i=0;i<args.length;i++)
+		for(int i=0;args != null && i<args.length;i++)
 			{
 			marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
 			}
