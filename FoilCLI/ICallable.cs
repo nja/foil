@@ -8,6 +8,6 @@ namespace com.richhickey.foil
 	/// </summary>
 	public interface ICallable 
 	{
-		public	Object invoke(ArrayList args);
+		Object invoke(ArrayList args);
 	}
 }
