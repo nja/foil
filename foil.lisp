@@ -571,11 +571,12 @@ The resulting file will not need a VM running to either compile or load"
             ('ensure-package (push def ensures))
             ('export (push (second def) (gethash (third def) exports)))
             (t (push def forms))))))
-    (format strm "~{~S~%~}~{~S~%~}"
+    (format strm "(eval-when (:compile-toplevel :load-toplevel)~{~S~%~})~{~S~%~}"
             (remove-duplicates ensures :test #'string-equal :key #'second)
             (nreverse forms))
     (maphash (lambda (package syms)
-               (format strm "(export '~S ~S)" (mapcar #'second syms) package))
+               (format strm "(eval-when (:compile-toplevel :load-toplevel)(export '~S ~S))~%"
+                       (mapcar #'second syms) package))
              exports)))
 
 ;;;;;;;;;;;;;;;;;;;;boxing ;;;;;;;;;;;;;;;;;;;;;;;;;
