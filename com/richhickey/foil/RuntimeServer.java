@@ -171,6 +171,14 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 				sw.write(')');
 				resultMessage = sw.toString(); 
 			    }
+			else if(isMessage(":marshall",message))
+			    //(:marshall ref marshall-flags marshall-value-depth-limit)
+			    {
+			    Object ret = message.get(1);
+				int marshallFlags = intArg(message.get(2));
+				int marshallDepth = intArg(message.get(3));
+				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+			    }
 			else
 			    {
 			    throw new Exception("unsupported message");
