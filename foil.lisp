@@ -91,11 +91,12 @@
   #+allegro (make-hash-table :values :weak))
 
 
-(setf (fdefinition 'ensure-class) 
-      #+lispworks #'clos:ensure-class
-      #+cmu #'pcl:ensure-class
-      #+sbcl #'sb-mop:ensure-class
-      #+allegro #'mop:ensure-class)
+(eval-when (:compile-toplevel :load-toplevel)
+  (setf (fdefinition 'ensure-class) 
+        #+lispworks #'clos:ensure-class
+        #+cmu #'pcl:ensure-class
+        #+sbcl #'sb-mop:ensure-class
+        #+allegro #'mop:ensure-class))
  
 
 ;;;;; end porting section ;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,20 +115,13 @@
 
 #|
 please ignore this scratchpad stuff
+(load "/dev/foil/foil")
 (use-package :foil)
-(load "/foil/java-lang")
-(load "/foil/java-io")
-(load "/foil/java-util")
-(load "/foil/java-sql")
-(use-package '("java.lang" "java.io" "java.util" "java.sql"))
-(setf *fvm* (make-instance 'foreign-vm
-                           :stream
-                           (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
 (require "comm")
 (setf *fvm* (make-instance 'foreign-vm
                            :stream
                            (comm:open-tcp-stream "localhost" 13579)))
-(get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
+
 |#
 
 (defconstant +MARSHALL-NO-IDS+ 0)
@@ -194,15 +188,15 @@ please ignore this scratchpad stuff
     (fvm-stream *fvm*)))
 
 (defun send-message (&rest args)
-  (let* ((*print-length* nil)
-         (send-stream (get-fvm-stream))
-         (free-list (fvm-free-list *fvm*)))
-    (when free-list
-      (setf (fvm-free-list *fvm*) nil)
-      (free-frefs send-stream free-list))
-    (format send-stream "~S" args)
-    (force-output send-stream)
-    (process-return-message)))
+  (with-standard-io-syntax
+    (let* ((send-stream (get-fvm-stream))
+           (free-list (fvm-free-list *fvm*)))
+      (when free-list
+        (setf (fvm-free-list *fvm*) nil)
+        (free-frefs send-stream free-list))
+      (format send-stream "~S" args)
+      (force-output send-stream)
+      (process-return-message))))
 
 (defun free-frefs (strm frefs)
   (format strm "(:free")
@@ -710,7 +704,7 @@ The resulting file will not need a VM running to either compile or load"
             (remove-duplicates ensures :test #'string-equal :key #'second)
             (nreverse forms))
     (maphash (lambda (package syms)
-               (format strm "(eval-when (:compile-toplevel :load-toplevel)(export '~S ~S))~%"
+               (format strm "(eval-when (:load-toplevel)(export '~S ~S))~%"
                        (mapcar #'second syms) package))
              exports)))
 
