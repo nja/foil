@@ -9,33 +9,48 @@
 (defpackage :foil
   (:use :common-lisp :lispworks)
   (:export 
-   :*fvm*
-   :foreign-vm
 
    :def-foil-class
 
-   :*marshalling-flags*
+   :equals
+   :instance-of
+   :to-string
+   :hash
+   :marshall
+   :get-type
+   :ensure-typed-ref
+
+   :get-type-for-name
+
+   :ensure-package
+
+   :make-new
+   :make-new-vector
+   :vref
+   :vlength
+   :box
+   :box-vector
+   
+   :with-vm
+   :with-vm-of
+
+   :with-marshalling
    :*marshalling-depth*
+   :*marshalling-flags*
+   :+marshall-id+
+   :+marshall-hash+
+   :+marshall-type+
 
    :fref
    :fref-vm
    :fref-id
    :fref-hash
+   :fref-type
    :fref-val
 
-   :foil-type-of
-   :foil-find-class
-   
-   :ensure-typed-ref
-   :ensure-package
+   :*fvm*
+   :foreign-vm
 
-   :make-new
-   
-   :with-vm-of
-   
-   :+marshall-id+
-   :+marshall-hash+
-   :+marshall-type+
    ))
 
 (in-package :foil)
@@ -235,11 +250,11 @@ as it depends upon symbol-value being the canonic class symbol"
   (unless (get class-sym :ensured)
     (ensure-foil-class (foil-class-name class-sym))))
 
-(defun foil-type-of (fref)
+(defun get-type (fref)
   (get-or-init (fref-type fref)
                (send-message :type-of fref)))
 
-(defun foil-find-class (full-class-name)
+(defun get-type-for-name (full-class-name)
   (find-class-ref (class-symbol full-class-name)))
 
 (defun find-class-ref (class-sym)
@@ -263,7 +278,7 @@ as it depends upon symbol-value being the canonic class symbol"
                             (send-message :cref +callable-field+ (find-class-ref class-sym) name)))
 
 (defun class-name-of (fref)
-  (fref-val (foil-type-of fref)))
+  (fref-val (get-type fref)))
 
 (defun ensure-typed-ref (fref)
   "Given a raw fref, determines the full type of the object
@@ -330,10 +345,14 @@ make-new specialized on the class-symbol"
     (let ((ctor-sym (constructor-symbol full-class-name)))
       `((defun ,ctor-sym (&rest args)
           ,(format nil "~{~A~%~}" ctor-list)
-          (call-ctor ,class-sym args))
+          (call-ctor ',class-sym args))
         (export ',ctor-sym ,package)
         (defmethod make-new ((class-sym (eql ,class-sym)) &rest args)
           (apply (function ,ctor-sym) args))))))
+
+(defmacro with-vm (vm &body body)
+  `(let ((*fvm* ,vm))
+     ,@body))
 
 (defmacro with-vm-of (this &body body)
   (let ((gthis (gensym)))
@@ -342,6 +361,11 @@ make-new specialized on the class-symbol"
                      (fref-vm ,gthis)
                    *fvm*)))
      ,@body)))
+
+(defmacro with-marshalling ((depth &rest flags) &body body)
+  `(let ((*marshalling-depth* ,depth)
+         (*marshalling-flags* (apply #'logior ,flags)))
+     ,@body))
 
 (defun foil-call-method (class-sym name method-sym this args)
   (with-vm-of this
@@ -476,3 +500,58 @@ static fields also get a symbol-macro *classname.fieldname*"
   "Given the package-qualified, case-correct name of a java class, will generate
 wrapper functions for its constructors, fields and methods."
   `(locally ,@(do-def-foil-class full-class-name)))
+
+;;;;;;;;;;;;;;;;;;;;boxing ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defstruct (fbox (:print-object print-fbox))
+  type
+  val)
+
+(defun print-fbox (box strm)
+  (format strm "#{:box ~S ~S}" (fbox-type box) (fbox-val box)))
+
+(defun box (type val)
+  (make-fbox :type type :val val))
+
+(defstruct (fvbox (:print-object print-fvbox))
+  type
+  vals)
+
+(defun print-fvbox (box strm)
+  (format strm "#{:vector ~S~{ ~S~}}" (fvbox-type box) (fvbox-vals box)))
+
+(defun box-vector (type &rest vals)
+  (make-fvbox :type type :vals vals))
+
+;;;;;;;;;;;;;;;;vectors;;;;;;;;;;;;;;;;
+
+(defun make-new-vector (type length &rest inits)
+  (apply #'send-message :vector type length inits))
+
+(defun vref (vec idx)
+  (send-message :vget vec *marshalling-flags* *marshalling-depth* idx))
+
+(defun (setf vref) (val vec idx)
+  (send-message :vset vec idx val)
+  val)
+
+(defun vlength (vec)
+  (send-message :vlen vec))
+
+;;;;;;;;;;;;;portable object stuff;;;;;;;;;;;;;
+(defun equals (fref1 fref2)
+  (send-message :equals fref1 fref2))
+
+(defun instance-of (fref type)
+  (send-message :is-a fref type))
+
+(defun to-string (fref)
+  (send-message :str fref))
+
+(defun hash (fref)
+  (get-or-init (fref-hash fref)
+               (send-message :hash fref)))
+
+(defun marshall (fref)
+  (setf (fref-val fref)
+               (send-message :marshall fref *marshalling-flags* *marshalling-depth*)))
