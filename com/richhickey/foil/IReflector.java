@@ -31,5 +31,5 @@ public interface IReflector
     void vectorSet(Object v,int index,Object val) throws Exception;
     Object vectorLength(Object v) throws Exception;
 	void setProps(Object o, List nameValuePairs) throws Exception;
-
+	Object makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,List interfaces)throws Exception;
     }

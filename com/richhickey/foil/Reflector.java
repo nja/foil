@@ -579,4 +579,15 @@ public class Reflector implements IReflector
             supers.set(i,((Class)supers.get(i)).getName());
         return supers;
         }
+
+	/* (non-Javadoc)
+	 * @see com.richhickey.foil.IReflector#makeProxy(com.richhickey.foil.IRuntimeServer, int, int, java.util.List)
+	 */
+	public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, List interfaceList) throws Exception {
+		Class[] interfaces = new Class[interfaceList.size()];
+		for(int i=0;i<interfaces.length;i++)
+			interfaces[i] = RuntimeServer.typeArg(interfaceList.get(i));
+		return Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),interfaces,
+				new ProxyHandler(runtime,marshallFlags,marshallDepth));
+	}
 }

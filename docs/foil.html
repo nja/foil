@@ -262,6 +262,7 @@ Sendable messages:
 	<li>(:vget</li>
 	<li>(:vset</li>
 	<li>(:vlen</li>
+	<li>(:proxy</li>
 
 </ul>
 <p>Returnable messages:
@@ -269,7 +270,7 @@ Sendable messages:
 
 	<li>(:ret</li>
 	<li>(:err</li>
-	<li>(:call	;only from withing a :call</li>
+	<li>(:proxy-call	;only async or from withing a :call</li>
 
 </ul>
 
@@ -325,8 +326,9 @@ Sendable messages:
 <li>			<code>(:ret value)</code><br>
 				All normal returns are packaged in a form as above, value is as per below. 
 				If a function has a void return type, nil should be returned. </li>
-			<li><code>(:call ...)</code><br>
-				A nested callback, in the call format above. The receiver should process the call, send back its return, then re-read
+			<li><code>(:proxy-call ...)</code><br>
+				A nested callback, in the proxy-call format described below. The receiver should process the call, 
+				send back its return, then re-read
 				the stream for the return value of the original call.</li>
 			<li><code>(:err "error description" "stack trace")</code><br>
 				returned if an exception occurred while processing the request</li>
@@ -465,6 +467,19 @@ Sendable messages:
                       (:static bool)
                       (:get-doc doc-string)
                       (:set-doc doc-string)) ...)))</pre></code>
+
+<h4>Proxies</h4>
+<pre>
+<code>(:proxy marshall-flags marshall-value-depth-limit interface-trefs ...)</code><br>
+-> (:ret proxy-ref)
+</pre>
+<p>
+		Creates a proxy object that implements the given interface(s). When any of the object's methods are called,
+		sends a :proxy-call message of the form:<p>
+		<code>(:proxy-call method-symbol proxy-ref args ...)</code>
+		<p>where the proxy-ref is the same one originally returned from the :proxy message, and the
+		args are marshalled with the flags and depth requested in the :proxy message. method-symbol has the form<p>
+		<code>|package.name|::classname.methodname</code><p>note this means that the Lisp names are not independent, hmmm...
 
 <h3>Vectors</h3>
 	Creating an vector:<br>

@@ -14,6 +14,7 @@
 package com.richhickey.foil;
 
 import java.io.*;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.util.List;
 
@@ -33,10 +34,15 @@ public class RuntimeServer implements IRuntimeServer
     IReferenceManager referenceManager;
     
     IReflector reflector;
+    
+    ThreadLocal proxyWriter;
+    ThreadLocal proxyReader;
 
     public RuntimeServer(IReader reader, IBaseMarshaller marshaller,
             IReferenceManager referenceManager, IReflector reflector)
         {
+    	this.proxyReader = new ThreadLocal();
+    	this.proxyWriter = new ThreadLocal();
         this.reader = reader;
         this.marshaller = marshaller;
         this.referenceManager = referenceManager;
@@ -48,9 +54,9 @@ public class RuntimeServer implements IRuntimeServer
      * 
      * @see com.richhickey.foil.IRuntimeServer#processMessages()
      */
-public void processMessages(Reader ins,Writer outs) throws IOException{
-	for(;;)
-		{
+public Object processMessage(Reader ins,Writer outs) throws IOException
+	{
+	{
 	    String resultMessage = null;
 		try{
 			String form = slurpForm(ins);
@@ -105,6 +111,11 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			        }
 				resultMessage = createRetString(null,marshaller,0,0);
 			    }
+			else if(isMessage(":ret",message))
+				//only on callback
+				{
+				return message.get(1);
+				}
 			else if(isMessage(":str",message))
 			    //(:str refid)
 			    {
@@ -201,6 +212,14 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 //				sw.write(')');
 //				resultMessage = sw.toString(); 
 			    }
+			else if(isMessage(":proxy",message))
+			//(:proxy marshall-flags marshall-value-depth-limit interface-trefs ...)
+				{
+				int marshallFlags = intArg(message.get(1));
+				int marshallDepth = intArg(message.get(2));
+				resultMessage = createRetString(reflector.makeProxy(this,marshallFlags,marshallDepth,
+										message.subList(3,message.size())),marshaller,IBaseMarshaller.MARSHALL_ID,0);
+				}
 			else
 			    {
 			    throw new Exception("unsupported message");
@@ -235,6 +254,17 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 			outs.flush();
 		    }
 		}
+	return null;
+	}
+
+public void processMessages(Reader ins,Writer outs) throws IOException
+	{
+	//on this thread the main streams are also the proxy streams
+	proxyReader.set(ins);
+	proxyWriter.set(outs);
+	
+	for(;;)
+		processMessage(ins,outs);
 	}
 
 	String stringArg(Object o)
@@ -359,4 +389,42 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 	        System.out.println(ex.getMessage());
 	    	}
         }
+
+	/* (non-Javadoc)
+	 * @see com.richhickey.foil.IRuntimeServer#proxyCall(int, int, java.lang.reflect.Method, java.lang.Object, java.lang.Object[])
+	 */
+	public Object proxyCall(int marshallFlags, int marshallDepth, Method method, Object proxy, Object[] args) throws Exception 
+		{
+		Reader reader = (Reader)proxyReader.get();
+		Writer writer = (Writer)proxyWriter.get();
+		
+		//form the call message:
+		//(:proxy-call method-symbol proxy-ref args ...)
+		//method-symbol has the form: |package.name|::classname.methodname
+		
+		String decl = method.getDeclaringClass().getName();
+		StringWriter sw = new StringWriter();
+		int lastDotIdx = decl.lastIndexOf('.'); 
+		sw.write("(:proxy-call |");
+		sw.write(decl.substring(0,lastDotIdx));
+		sw.write("|::");
+		sw.write(decl.substring(lastDotIdx+1));
+		sw.write('.');
+		sw.write(method.getName());
+		
+		marshaller.marshallAtom(proxy,sw,IBaseMarshaller.MARSHALL_ID,0);
+		
+		for(int i=0;i<args.length;i++)
+			{
+			marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
+			}
+		
+		sw.write(')');
+		
+		writer.write(sw.toString());
+		writer.flush();
+		
+		
+		return processMessage(reader,writer);
+		}
     }

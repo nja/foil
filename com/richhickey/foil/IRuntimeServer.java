@@ -11,11 +11,12 @@
 */
 package com.richhickey.foil;
 import java.io.*;
+import java.lang.reflect.*;
 /**
  * @author Rich
  *
  */
 public interface IRuntimeServer {
     public void processMessages(Reader ins,Writer outs) throws IOException;
-
+    public Object proxyCall(int marshallFlags,int marshallDepth,Method method, Object proxy,Object[] args) throws Exception;
 }
