@@ -120,7 +120,7 @@ namespace  com.richhickey.foil
 		static Boolean isCongruent(ParameterInfo[] parameters,ArrayList args)
 		{
 			Boolean ret = false;
-			if(parameters.Length == args.Count)
+			if(parameters.Length == (args==null?0:args.Count))
 			{
 				ret = true;
 				for(int i=0;ret && i<parameters.Length;i++)
@@ -243,7 +243,7 @@ namespace  com.richhickey.foil
 	 {
         w.Write(" (");
         
-        ConstructorInfo[] ctors = c.GetConstructors(); 
+        ConstructorInfo[] ctors = c.GetConstructors(BindingFlags.Instance|BindingFlags.Public);
         if(ctors.Length > 0)
             {
             w.Write("(:ctors ");
@@ -257,7 +257,7 @@ namespace  com.richhickey.foil
             w.Write(')');
             }
         
-        MethodInfo[] methods = c.GetMethods();
+        MethodInfo[] methods = c.GetMethods(BindingFlags.Instance|BindingFlags.Public|BindingFlags.Static);
         if(methods.Length > 0)
             {
             w.Write("(:methods ");
@@ -295,7 +295,7 @@ namespace  com.richhickey.foil
             w.Write(')');
             }
 
-        FieldInfo[] fields = c.GetFields();
+        FieldInfo[] fields = c.GetFields(BindingFlags.Instance|BindingFlags.Public|BindingFlags.Static);
         if(fields.Length > 0)
             {
             w.Write("(:fields ");
@@ -327,7 +327,7 @@ namespace  com.richhickey.foil
             w.Write(')');
             }
         
-        PropertyInfo[] props = c.GetProperties();
+        PropertyInfo[] props = c.GetProperties(BindingFlags.Instance|BindingFlags.Public|BindingFlags.Static);
         if(props.Length > 0)
             {
             w.Write("(:properties ");
@@ -487,8 +487,8 @@ namespace  com.richhickey.foil
 	 {
         ArrayList supers = new ArrayList();
         if(c.IsInterface)
-            supers.Add(Type.GetType("Object"));
-        else //ET Not sure I need this? if(!c.BaseType.Equals(Type.GetType("Object"))) 
+            supers.Add(Type.GetType("System.Object"));
+        else if(c.BaseType != null) 
             supers.Add(c.BaseType);
         Type[] interfaces = c.GetInterfaces();
         for(int i=0;i<interfaces.Length;i++)
@@ -511,6 +511,17 @@ namespace  com.richhickey.foil
             supers[p]	=	((Type)supers[p]).ToString();
 		return	supers;
 	 }
+		public Object makeProxy(IRuntimeServer runtime, int marshallFlags, int marshallDepth, ArrayList interfaceList) 
+		{
+		Type[] interfaces = new Type[interfaceList.Count];
+		for(int i=0;i<interfaces.Length;i++)
+			interfaces[i] = RuntimeServer.typeArg(interfaceList[i]);
+		//return Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),interfaces,
+		//new ProxyHandler(runtime,marshallFlags,marshallDepth));
+			return	null;
+		}
 	}
 }
+
+
 												  

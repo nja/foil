@@ -9,9 +9,9 @@
  * 	 the terms of this license.
  *   You must not remove this notice, or any other, from this software.
  */
-using System;
-using System.IO;
-
+using	System;
+using	System.IO;
+using	System.Reflection;
 /**
  * @author Eric Thorsen
  *
@@ -24,6 +24,7 @@ namespace  com.richhickey.foil
 	/// </summary>
 	public interface IRuntimeServer
 	{
-		void processMessages(TextReader ins,TextWriter outs);
+		Object	processMessages(TextReader ins,TextWriter outs);
+		Object	proxyCall(int marshallFlags,int marshallDepth,MethodInfo method, Object proxy,Object[] args);
 	}
 }

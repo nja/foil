@@ -27,10 +27,10 @@ namespace	com.richhickey.foil
 
 	public interface	IBaseMarshaller
 	{
-		  void marshallAtom(Object o,TextWriter w, int flags,int depth);
-		  bool canMarshallAsList(Object o);
-		  void marshallAsList(Object o,TextWriter w, int flags,int depth);
-		  void marshallAsVector(Object o,TextWriter w, int flags,int depth);
-		 // IMarshaller findMarshallerFor(Type c);
+			void marshallAtom(Object o,TextWriter w, int flags,int depth);
+			bool canMarshallAsList(Object o);
+			void marshallAsList(Object o,TextWriter w, int flags,int depth);
+			void marshallAsVector(Object o,TextWriter w, int flags,int depth);
+			IMarshaller findMarshallerFor(Type c);
 	}
 }

@@ -32,5 +32,6 @@ namespace com.richhickey.foil
 		void vectorSet(Object v,int index,Object val);
 		Object vectorLength(Object v);
 		void setProps(Object o, ArrayList nameValuePairs);
-	}
+		Object makeProxy(IRuntimeServer runtime,int marshallFlags,int marshallDepth,ArrayList interfaces);
+ 	}
 }

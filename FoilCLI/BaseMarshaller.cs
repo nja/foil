@@ -39,7 +39,7 @@ namespace com.richhickey.foil
 			marshallerMap.Add(target,marshaller);
 		}
     
-		IMarshaller findMarshallerFor(Type	c)
+		public	IMarshaller findMarshallerFor(System.Type	c)
 		{
 			//already seen this type?
 			if(marshallerCache.ContainsKey(c))
@@ -96,6 +96,11 @@ namespace com.richhickey.foil
 					else
 						w.Write("nil");
 				}
+				else if(o is System.Char)
+				{
+					w.Write("#\\");
+					w.Write("{0}",Convert.ToInt32((Char)o));
+				}
 				else
 					w.Write(o.ToString());
 			}
@@ -107,34 +112,49 @@ namespace com.richhickey.foil
 			}
 			else //write a reference
 			{
-				w.Write("#{:ref");
-            
 				if((flags & IBaseMarshallerFlags.MARSHALL_ID) != 0)
 				{
-					w.Write(" :id {0}",referenceManager.getIdForObject(o));
-				}
-				if((flags & IBaseMarshallerFlags.MARSHALL_HASH) != 0)
-				{
-					w.Write(" :hash {0}",o.GetHashCode());
-				}
+					w.Write("#{:ref");
+            
+					if((flags & IBaseMarshallerFlags.MARSHALL_ID) != 0)
+					{
+						w.Write(" :id {0}",referenceManager.getIdForObject(o));
+					}
+					if((flags & IBaseMarshallerFlags.MARSHALL_HASH) != 0)
+					{
+						w.Write(" :hash {0}",o.GetHashCode());
+					}
 
-				if((flags & IBaseMarshallerFlags.MARSHALL_TYPE) != 0)
-				{
-					w.Write(" :type ");
-					marshallAtom(c,w,IBaseMarshallerFlags.MARSHALL_ID,1);
-				}
+					if((flags & IBaseMarshallerFlags.MARSHALL_TYPE) != 0)
+					{
+						w.Write(" :type ");
+						marshallAtom(c,w,IBaseMarshallerFlags.MARSHALL_ID,1);
+					}
 
-				if(depth > 0)
+					if(depth > 0)
+					{
+						IMarshaller m = findMarshallerFor(c);
+						if(m != null)
+						{
+							w.Write(" :val");
+							m.marshall(o,w,this,flags,depth - 1);
+						}
+					}
+            
+					w.Write('}');
+				}
+				else	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
 				{
 					IMarshaller m = findMarshallerFor(c);
 					if(m != null)
 					{
-						w.Write(" :val");
 						m.marshall(o,w,this,flags,depth - 1);
 					}
+					else
+					{
+						w.Write("nil");
+					}
 				}
-            
-				w.Write('}');
 			}
 		}
 

@@ -36,7 +36,7 @@
           (when  (and ;don't grab implementation details classes
                   (not (or (find #\$ ename)
                            (find #\+ ename)
-                           ;(search "__" ename)
+                           (search "__" ename)
                            (search "PrivateImplementationDetails" ename)))
                   (some #'matches dot-packages))
             (push ename names)))))
@@ -46,19 +46,8 @@
 (defun gen-wrappers ()
   (dump-wrapper-defs-to-file "/foil/cli-system.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/mscorlib.dll" "System/"))
 ;  (dump-wrapper-defs-to-file "/foil/cli-system-windows-forms.lisp" (get-assembly-classnames "/WINDOWS/Microsoft.NET/Framework/v1.1.4322/System.Windows.Forms.dll" "System/Windows/Forms/"))
- 
-  ;(dump-wrapper-defs-to-file "/foil/java-util.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/util/"))
-  ;(dump-wrapper-defs-to-file "/foil/java-io.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/io/"))
-  ;(dump-wrapper-defs-to-file "/foil/java-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/sql/"))
-  ;(dump-wrapper-defs-to-file "/foil/javax-sql.lisp" (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "javax/sql/"))
-  ;(dump-wrapper-defs-to-file "/foil/swt.lisp" (get-jar-classnames "/swt/swt.jar" "org/eclipse/swt/" "org/eclipse/swt/program/" "org/eclipse/swt/printing/" "org/eclipse/swt/layout/" "org/eclipse/s;wt/dnd/" "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/" "org/eclipse/swt/events/" "org/eclipse/swt/printing/" "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/" "org/eclipse/swt/awt/"))
 
   (compile-file "/foil/cli-system.lisp")
-  (compile-file "/foil/cli-system-windows-forms.lisp")
- ; (compile-file "/foil/java-io")
- ; (compile-file "/foil/java-sql")
- ; (compile-file "/foil/javax-sql")
- ; (compile-file "/foil/swt")
 )
  
 ;(gen-wrappers)

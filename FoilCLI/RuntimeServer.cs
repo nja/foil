@@ -34,6 +34,11 @@ namespace com.richhickey.foil
     IReferenceManager	referenceManager;
     IReflector			reflector;
 
+	[ThreadStatic]
+	Object		proxyWriter;
+	[ThreadStatic]
+	Object		proxyReader;
+
     public RuntimeServer(	IReader reader
 							, IBaseMarshaller marshaller
 							, IReferenceManager referenceManager
@@ -51,14 +56,15 @@ namespace com.richhickey.foil
      * 
      * @see com.richhickey.foil.IRuntimeServer#processMessages()
      */
-public void processMessages(TextReader ins,TextWriter outs) 
+public Object processMessages(TextReader ins,TextWriter outs) 
 	{
 	for(;;)
 		{
-	    String resultMessage = null;
+	    String	resultMessage	=	null;
+		String	sin				=	null;
 		try{
-			
-			ArrayList message = reader.readMessage(ins);
+			sin					=	slurpForm(ins);
+			ArrayList message	=	reader.readMessage(new StringReader(sin));
 			if(isMessage(":call",message))
 			    //(:call cref marshall-flags marshall-value-depth-limit args ...)
 			    {
@@ -182,7 +188,35 @@ public void processMessages(TextReader ins,TextWriter outs)
 			    {
 				resultMessage = createRetString(message[1].GetHashCode(),marshaller,0,0);
 			    }
+			else if(isMessage(":members",message))
+				//(:members :tref|"packageQualifiedTypeName")
+			{
+				Type c = typeArg(message[1]);
+				StringWriter sw = new StringWriter();
+				sw.Write("(:ret");
+				reflector.members(c,sw);
+				sw.Write(')');
+				resultMessage = sw.ToString(); 
 			}
+			else if(isMessage(":marshall",message))
+				//(:marshall ref marshall-flags marshall-value-depth-limit)
+			{
+				Object ret = message[1];
+				int marshallFlags = intArg(message[2]);
+				int marshallDepth = intArg(message[3]);
+				resultMessage = createRetString(ret,marshaller,marshallFlags,marshallDepth);
+				//			    IMarshaller m = marshaller.findMarshallerFor(ret.getClass());
+				//				StringWriter sw = new StringWriter();
+				//				sw.write("(:ret");
+				//				m.marshall(ret,sw,marshaller,marshallFlags,marshallDepth);
+				//				sw.write(')');
+				//				resultMessage = sw.toString(); 
+			}
+			else
+			{
+				throw new Exception("unsupported message");
+			}
+		}
 		catch(Exception ex)
 			{
 		    if(ex is IOException)
@@ -192,6 +226,8 @@ public void processMessages(TextReader ins,TextWriter outs)
 			    TargetInvocationException  ite = (TargetInvocationException)ex;
 			    ex = ite.InnerException;
 		        }
+			//Console.WriteLine(ex.ToString());
+			//Console.WriteLine(ex.StackTrace);
 
 		    outs.Write("(:err \"");
 			outs.Write(ex.ToString());
@@ -199,6 +235,8 @@ public void processMessages(TextReader ins,TextWriter outs)
 			marshaller.marshallAsList(ex.StackTrace,outs,0,1);
 			outs.Write(')');
 			outs.Flush();
+			//ET See if this gets rid of the bogus error message on the lisp side.
+		//	String dontCare	=	ins.ReadToEnd();
 			}
 
 		if(resultMessage != null)
@@ -208,7 +246,88 @@ public void processMessages(TextReader ins,TextWriter outs)
 		    }
 		}
 	}
+		public Object proxyCall(int marshallFlags, int marshallDepth, MethodInfo method, Object proxy, Object[] args) 
+	  {
+			TextReader reader = (TextReader)proxyReader;
+			TextWriter writer = (TextWriter)proxyWriter;
+		
+		//form the call message:
+		//(:proxy-call method-symbol proxy-ref args ...)
+		//method-symbol has the form: |package.name|::classname.methodname
+		
+		String decl = method.DeclaringType.Name;
+		StringWriter sw = new StringWriter();
+		int lastDotIdx = decl.LastIndexOf('.'); 
+		sw.Write("(:proxy-call |");
+		sw.Write(decl.Substring(0,lastDotIdx));
+		sw.Write("|::");
+		sw.Write(decl.Substring(lastDotIdx+1));
+		sw.Write('.');
+		sw.Write(method.Name);
+		
+		marshaller.marshallAtom(proxy,sw,IBaseMarshallerFlags.MARSHALL_ID,0);
+		
+		for(int i=0;i<args.Length;i++)
+	{
+		marshaller.marshallAtom(args[i],sw,marshallFlags,marshallDepth);
+	}
+		
+	sw.Write(')');
+		
+	writer.Write(sw.ToString());
+	writer.Flush();
+		
+		
+	return processMessages(reader,writer);
+}
 
+		static String slurpForm(TextReader strm) 
+			{
+			StringWriter sw = new StringWriter();
+		
+			while(strm.Read() != '(')
+				;
+			int parenCount = 1;
+			sw.Write('(');
+			Boolean inString = false;
+			Boolean escape = false;
+			do
+			{
+			int c = strm.Read();
+			if(c == '(')
+				{
+				if(!inString)
+					++parenCount;
+				}
+			else if(c == ')')
+				{
+				if(!inString)
+					--parenCount;
+				}
+			else if(c == '"')
+				{
+				if(!escape)
+					inString = !inString;
+				}		
+			if(inString && c == '\\')
+				escape = true;
+			else
+				escape = false;
+			sw.Write((Char)c);
+			} while(parenCount > 0);		
+			return sw.ToString();
+			}
+
+		/*
+	public void processMessages(TextReader ins,TextWriter outs) 
+		{
+		//on this thread the main streams are also the proxy streams
+		proxyReader	=	ins;
+		proxyWriter	=	outs;
+		for(;;)
+			processMessage(ins,outs);
+		}
+*/
 	internal	static	String stringArg(Object o)
 	    {
 	    return (String)o;
@@ -225,11 +344,24 @@ public void processMessages(TextReader ins,TextWriter outs)
 	        return (Type)arg;
 	    else if (arg is String)
 	        {
-	        return Type.GetType((String)arg);
+	        Type t =	Type.GetType((String)arg);
+			return	typeArgFromAssemblies((String)arg);
 	        }
 	    else
 	        throw new Exception("expecting type arg, either reference or packageQualifiedName string");
 	    }
+
+		internal	static	Type	typeArgFromAssemblies(String obj)
+		{
+			Assembly[] asms	=	System.AppDomain.CurrentDomain.GetAssemblies();
+			foreach(Assembly a in asms)
+			{
+				Type t	=	a.GetType(obj);
+				if(t!=null)
+					return	t;
+			}
+			return	null;
+		}
 	
 	internal	static	Boolean isMessage(String type,ArrayList message)
 	    {
