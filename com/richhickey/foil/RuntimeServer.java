@@ -352,6 +352,17 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 		return sw.toString();
 	    }
 
+	public void processMessagesOnSocket(int port) throws IOException
+		{
+		ServerSocket ss = new ServerSocket(port);
+		
+		Socket s = ss.accept();
+		//s.setTcpNoDelay(true);
+		processMessages(new BufferedReader(new InputStreamReader(s.getInputStream())),
+				new BufferedWriter(new OutputStreamWriter(s.getOutputStream())));
+		
+		}
+	
 	public static void main(String[] args)
         {
 	    IReferenceManager referenceManager = new ReferenceManager();
@@ -359,17 +370,34 @@ public Object processMessages(Reader ins,Writer outs) throws IOException
 	    baseMarshaller.registerMarshaller(Object.class, new UniversalMarshaller());
 	    IReflector reflector = new Reflector(baseMarshaller);
 	    IReader reader = new MessageReader(referenceManager,reflector);
-	    IRuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
+	    RuntimeServer server = new RuntimeServer(reader,baseMarshaller,referenceManager,reflector);
 	    try{
-	    	if(args.length == 1) //port #, run o nsocket
-	    	{
-	    		ServerSocket ss = new ServerSocket(Integer.parseInt(args[0]));
-	    		
-	    		Socket s = ss.accept();
-	    		//s.setTcpNoDelay(true);
-	    		server.processMessages(new BufferedReader(new InputStreamReader(s.getInputStream())),
-	    				new BufferedWriter(new OutputStreamWriter(s.getOutputStream())));
-	    	}
+	    	if(args.length >= 1) //port #s, run on sockets
+	    		{	
+	    		//fire up a background thread for all sockets except first
+	    		for(int i=1;i<args.length;i++)
+	    			{
+	    			final RuntimeServer rs = server;
+	    			final int port = Integer.parseInt(args[i]);
+	    			Runnable r = new Runnable()
+						{
+	    				public void run()
+	    					{
+	    					try
+								{
+	    						rs.processMessagesOnSocket(port);
+	    						}
+	    					catch(IOException e)
+								{
+	    						
+								}
+	    					}
+						};
+					new Thread(r).start();
+	    			}
+	    		//app lives with first socket
+	    		server.processMessagesOnSocket(Integer.parseInt(args[0]));
+	    		}
 	    	else //run on stdio
 	    		{
 	    		server.processMessages(new BufferedReader(new InputStreamReader(System.in)),

@@ -181,7 +181,7 @@ public class BaseMarshaller implements IBaseMarshaller
             
             w.write('}');
             }
-        else	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
+        else if(depth > 0)	//effectively, MARSHALL_NO_REFS, write just the value of a reference type, since id was not requested
             {
             IMarshaller m = findMarshallerFor(c);
             if(m != null)
@@ -193,6 +193,10 @@ public class BaseMarshaller implements IBaseMarshaller
                 w.write("nil");
                 }
             }
+        else
+        	{
+        	w.write("nil");
+        	}
 
         }
 

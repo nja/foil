@@ -33,6 +33,9 @@
    :vlength
    :box
    :box-vector
+
+   :make-new-proxy
+   :handle-proxy-call
    
    :with-vm
    :with-vm-of
@@ -40,9 +43,10 @@
    :with-marshalling
    :*marshalling-depth*
    :*marshalling-flags*
-   :+marshall-id+
-   :+marshall-hash+
-   :+marshall-type+
+   :+MARSHALL-NO-IDS+
+   :+MARSHALL-ID+
+   :+MARSHALL-HASH+
+   :+MARSHALL-TYPE+
 
    :fref
    :fref-vm
@@ -52,6 +56,8 @@
    :fref-val
 
    :*fvm*
+   :*thread-fvm*
+   :*thread-fvm-stream*
    :foreign-vm
 
    ))
@@ -61,6 +67,13 @@
 (defvar *fvm* nil
   "all messages will be sent to the foreign-vm to which this is bound")
 
+(defvar *thread-fvm-stream* nil
+  "if this thread is waiting on a callback channel, and (eql *fvm* *thread-fvm*), use this stream")
+
+(defvar *thread-fvm* nil
+  "if, set, this thread is wating on a callback from this vm")
+
+
 #|
 (use-package :foil)
 (load "/foil/java-lang")
@@ -69,23 +82,23 @@
 (load "/foil/java-sql")
 (use-package '("java.lang" "java.io" "java.util" "java.sql"))
 (setf *fvm* (make-instance 'foreign-vm
-             :lisp-driven-stream
+             :stream
              (sys:open-pipe "java -Djava.library.path=/swt -Xmx128m -cp /dev/foil;/swt/swt.jar com.richhickey.foil.RuntimeServer")))
 (setf *fvm* (make-instance 'foreign-vm
-             :lisp-driven-stream
+             :stream
              (comm:open-tcp-stream "localhost" 13579)))
 (get-jar-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/lang/")
 |#
 
-(defconstant +marshall-none+ 0)
-(defconstant +marshall-id+ 1)
-(defconstant +marshall-type+ 2)
-(defconstant +marshall-hash+ 4)
+(defconstant +MARSHALL-NO-IDS+ 0)
+(defconstant +MARSHALL-ID+ 1)
+(defconstant +MARSHALL-TYPE+ 2)
+(defconstant +MARSHALL-HASH+ 4)
 
-(defconstant +callable-method+ 0)
-(defconstant +callable-field+ 1)
-(defconstant +callable-property-get+ 3)
-(defconstant +callable-property-set+ 4)
+(defconstant +CALLABLE-METHOD+ 0)
+(defconstant +CALLABLE-FIELD+ 1)
+(defconstant +CALLABLE-PROPERTY-GET+ 3)
+(defconstant +CALLABLE-PROPERTY-SET+ 4)
 
 (defvar *marshalling-flags* +marshall-id+)
 (defvar *marshalling-depth* 0)
@@ -125,17 +138,19 @@
   (format stream "#}~A" (fref-id fref)))
 
 (defclass foreign-vm ()
-  ((lisp-driven-stream :initarg :lisp-driven-stream :reader fvm-lisp-driven-stream)
-   (vm-driven-stream :reader fvm-vm-driven-stream)
+  ((stream :initarg :stream :reader fvm-stream)
    (fref-table :initform (make-hash-table :weak-kind :value) :reader fvm-fref-table)
    (symbol-table :initform (make-hash-table) :reader fvm-symbol-table)
    (free-list :initform nil :accessor fvm-free-list)))
 
+(defun get-fvm-stream ()
+  (if (and *thread-fvm-stream* (eq *fvm* *thread-fvm*))
+      *thread-fvm-stream*
+    (fvm-stream *fvm*)))
+
 (defun send-message (&rest args)
   (let* ((*print-length* nil)
-         (send-stream (if *in-async-callback*
-                  (fvm-vm-driven-stream *fvm*)
-                (fvm-lisp-driven-stream *fvm*)))
+         (send-stream (get-fvm-stream))
          (free-list (fvm-free-list *fvm*)))
     (when free-list
       (setf (fvm-free-list *fvm*) nil)
@@ -151,15 +166,16 @@
 
 (defun process-return-message ()
   (let* ((*readtable* *foil-readtable*)
-         (ret-stream (if *in-async-callback*
-                  (fvm-vm-driven-stream *fvm*)
-                (fvm-lisp-driven-stream *fvm*)))
+         (ret-stream (get-fvm-stream))
          (msg (read ret-stream)))
     (case (first msg)
       (:ret (second msg))
       (:err (error (third msg))) ;just dump stack trace for now
-      ;todo - nested :call
-      )))
+      ;nested call, hopefully will get TCO
+      (:proxy-call
+       (format ret-stream "(:ret ~S)" (apply #'handle-proxy-call (rest msg)))
+       (force-output ret-stream)
+       (process-return-message)))))
 
 (defmethod handle-braces-macro ((cmd (eql :ref)) &rest args)
   (apply #'register-fref args))
@@ -540,10 +556,10 @@ static fields also get a symbol-macro *classname.fieldname*"
              (push (if is-static
                    `(defun (setf ,method-sym) (val &rest args)
                       ,set-doc
-                      (apply #'call-prop-set ',class-sym ,name ',setter-sym nil (append args (list val))))
+                      (call-prop-set ',class-sym ,name ',setter-sym nil (append args (list val))))
                  `(defun (setf ,method-sym) (val this &rest args)
                     ,set-doc
-                    (apply #'call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
+                    (call-prop-set ',class-sym ,name ',setter-sym this (append args (list val)))))
                defs))
          (push `(export ',method-sym ,package)
                defs)))
@@ -620,6 +636,7 @@ The resulting file will not need a VM running to either compile or load"
   (send-message :vlen vec))
 
 ;;;;;;;;;;;;;portable object stuff;;;;;;;;;;;;;
+
 (defun equals (fref1 fref2)
   (send-message :equals fref1 fref2))
 
@@ -636,3 +653,14 @@ The resulting file will not need a VM running to either compile or load"
 (defun marshall (fref)
   (setf (fref-val fref)
                (send-message :marshall fref *marshalling-flags* *marshalling-depth*)))
+
+;;;;;;;;;;;;;;;;;;; proxies ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun make-new-proxy (arg-marshall-flags arg-marshall-depth &rest interfaces)
+  (apply #'send-message :proxy arg-marshall-flags arg-marshall-depth (mapcar #'type-arg interfaces)))
+
+(defgeneric handle-proxy-call (method-symbol proxy &rest args))
+
+(defmethod handle-proxy-call (method-symbol proxy &rest args)
+  (format t "unhandled :proxy-call ~S ~S ~S~%" method-symbol proxy args)
+  nil)
