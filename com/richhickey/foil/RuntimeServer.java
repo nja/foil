@@ -194,10 +194,10 @@ public void processMessages(Reader ins,Writer outs) throws IOException{
 		    String trace;
 		    if(ex instanceof IOException)
 		        throw (IOException)ex;
-			else if(ex instanceof InvocationTargetException)
+		    
+			while(ex.getCause() != null)
 		        {
-			    InvocationTargetException ite = (InvocationTargetException)ex;
-			    ex = ite.getTargetException();
+			    ex = ex.getCause();
 		        }
 
 		    outs.write("(:err");
