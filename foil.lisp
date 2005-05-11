@@ -149,7 +149,7 @@ please ignore this scratchpad stuff
                                     (apply #'handle-braces-macro (read-delimited-list #\} stream t))))
     tbl))
 
-(defclass fref ()
+(defclass fref ()  
   ((vm :reader fref-vm :initarg :vm )
   (id :reader fref-id :initarg :id)
   (rev :accessor fref-rev :initarg :rev)

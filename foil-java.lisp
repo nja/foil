@@ -16,6 +16,14 @@
    (dump-wrapper-defs-to-file "/foil/java-sql.lisp"
                               (get-library-classnames "/j2sdk1.4.2/jre/lib/rt.jar" "java/sql/")))
 
+  (compile-file
+   (dump-wrapper-defs-to-file "/foil/asm.lisp"
+                              (get-library-classnames "/dev/asm-1.5.3/lib/asm-1.5.3.jar" "org/objectweb/asm")))
+
+  (compile-file
+   (dump-wrapper-defs-to-file "/foil/commons-httpclient.lisp"
+     (get-library-classnames
+      "/dev/commons-httpclient-2.0.2/commons-httpclient-2.0.2.jar" "org/apache/commons/httpclient")))
   ;sometimes LW 4.4 dies after successfully generating this fasl - hmmm...
   (compile-file
    (dump-wrapper-defs-to-file "/foil/swt.lisp"
@@ -26,9 +34,4 @@
                          "org/eclipse/swt/graphics/" "org/eclipse/swt/custom/"
                          "org/eclipse/swt/events/" "org/eclipse/swt/printing/"
                          "org/eclipse/swt/widgets/" "org/eclipse/swt/browser/"
-                         "org/eclipse/swt/awt/")))
-  
-  (compile-file
-   (dump-wrapper-defs-to-file "/foil/commons-httpclient.lisp"
-     (get-library-classnames
-      "/dev/commons-httpclient-2.0.2/commons-httpclient-2.0.2.jar" "org/apache/commons/httpclient"))))
+                         "org/eclipse/swt/awt/"))))
