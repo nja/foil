@@ -328,15 +328,18 @@ the full class name as a string, the class-symbol, or one of :boolean, :int etc
                                                 "."
                                                 canonic-class-symbol))
 
-(defun member-symbol (full-class-name member-name)
+(defun member-symbol (full-class-name member-name is-static)
   "members are defined case-insensitively in case-sensitive packages,
-prefixed by 'classname.' -
-(member-symbol \"java.lang.Object\" \"toString\") -> '|java.lang|::OBJECT.TOSTRING"
+prefixed by 'classname.' if static or '.classname-' if instance -
+(member-symbol \"java.lang.Object\" \"toString\") -> '|java.lang|::.OBJECT-TOSTRING"
   (multiple-value-bind (package class) (split-package-and-class full-class-name)
-    (intern (string-upcase (string-append class "." member-name)) (ensure-package package))))
+    (intern (string-upcase (format nil (if is-static "~A.~A"
+                                         ".~A-~A")
+                                   class member-name))
+            (ensure-package package))))
 
 (defun constructor-symbol (full-class-name)
-  (member-symbol full-class-name "new"))
+  (member-symbol full-class-name "new" t))
 
 
 ;;;;;;;;;;;;;;;;;;;;;; typed reference support ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -565,23 +568,21 @@ make-new specialized on the class-symbol"
       (apply #'send-message :call cref *marshalling-flags* *marshalling-depth* this args))))
 
 (defun do-def-methods (full-class-name class-sym package methods)
-  (let ((methods-by-name (make-hash-table :test #'equal))
+  (let ((methods-by-sym (make-hash-table :test #'equal))
         (defs nil))
     (dolist (method methods)
-      (push method (gethash (find-tag-atom :name method) methods-by-name)))
+      (push method (gethash (member-symbol full-class-name
+                                           (find-tag-atom :name method)
+                                           (find-tag-atom :static method))
+                            methods-by-sym)))
     (maphash
-     (lambda (name methods)
-       (let ((method-sym (member-symbol full-class-name name))
-             (is-static (find-tag-atom :static (first methods)))
-             #+nil(doc (format nil "~{~A~%~}" (mapcar (lambda (m)
-                                                   (find-tag-atom :doc m))
-                                                 methods))))
+     (lambda (method-sym methods)
+       (let* ((name (find-tag-atom :name (first methods)))
+              (is-static (find-tag-atom :static (first methods))))
          (push (if is-static
                    `(defun ,method-sym (&rest args)
-                      ;,doc
                       (foil-call-method ',class-sym ',(intern name) ',method-sym nil args))
                  `(defun ,method-sym (this &rest args)
-                    ;,doc
                     (foil-call-method ',class-sym ',(intern name) ',method-sym this args)))
                defs)
          (push `(export ',method-sym ,package)
@@ -594,12 +595,8 @@ make-new specialized on the class-symbol"
                         (:signatures . ,(mapcar (lambda (m)
                                                   (mapcar #'symbol-for (find-tag-atom :sig m)))
                                                 methods))))
-               defs)
-        ;(push `(setf (get ',method-sym :member-type) ,(if is-static :static-method :method)) defs)
-        ;(push `(setf (get ',method-sym :full-class-name) ,full-class-name) defs)
-        ;(push `(setf (get ',method-sym :member-name) ,name) defs)
-         ))
-     methods-by-name)
+               defs)))
+     methods-by-sym)
     (nreverse defs)))
 
 
@@ -621,20 +618,25 @@ instance fields take an first arg which is the instance
 static fields also get a symbol-macro *classname.fieldname*"
   (let* ((defs nil))
     (dolist (field fields)
-      (let* ((field-name (find-tag-atom :name field))
-             (field-sym (member-symbol full-class-name field-name))
-             (setter-sym (member-symbol full-class-name (string-append "set-" field-name)))
-             (is-static (find-tag-atom :static field))
+      (let* ((is-static (find-tag-atom :static field))
+             (field-name (find-tag-atom :name field))
+             (field-sym (member-symbol full-class-name (if is-static 
+                                                           (string-append field-name "-static-field")
+                                                         field-name) 
+                                       is-static))
+             (setter-sym (member-symbol full-class-name (string-append "set-" field-name (if is-static
+                                                                                             "-static-field"
+                                                                                           ""))
+                                        is-static))
              (is-const (find-tag-atom :const field))
              #+nil(doc (find-tag-atom :doc field)))
         (if is-static
-            (let ((macsym (intern (string-append "*" (symbol-name field-sym) "*")
-                                  package)))
+            (let ((macsym (member-symbol full-class-name field-name is-static)))
               (push `(defun ,field-sym ()
                        ;,doc
-                       (call-field ',class-sym ,field-name ',field-sym nil))
+                       (call-field ',class-sym ',(intern field-name) ',field-sym nil))
                     defs)
-              (push `(export ',field-sym ,package) defs)
+              ;(push `(export ',field-sym ,package) defs)
               (unless is-const
                 (push `(defun ,setter-sym (val)
                          (call-field ',class-sym ,field-name ',field-sym nil val))
@@ -645,12 +647,12 @@ static fields also get a symbol-macro *classname.fieldname*"
           (progn
             (push `(defun ,field-sym (obj)
                      ;,doc
-                     (call-field ',class-sym ,field-name ',field-sym obj))
+                     (call-field ',class-sym ',(intern field-name) ',field-sym obj))
                   defs)
-            (push `(export ',field-sym ,package) defs)
+            ;(push `(export ',field-sym ,package) defs)
             (unless is-const
               (push `(defun ,setter-sym (obj val)
-                     (call-field ',class-sym ,field-name ',field-sym obj val))
+                     (call-field ',class-sym ',(intern field-name) ',field-sym obj val))
                   defs)
               (push `(defsetf ,field-sym ,setter-sym) defs))))
         (push `(setf (get ',field-sym :foil-info)
@@ -685,22 +687,30 @@ static fields also get a symbol-macro *classname.fieldname*"
 (defun do-def-props (full-class-name class-sym package props)
   (let ((defs nil))
     (dolist (prop props)
-      (let* ((name (find-tag-atom :name prop))
-             (method-sym (member-symbol full-class-name name))
+      (let* ((is-static (find-tag-atom :static prop))
+             (name (find-tag-atom :name prop))
+             (method-sym (member-symbol full-class-name name is-static))
              (get-function (find-tag-atom :get-function prop))
              (getter-sym (when get-function
-                           (member-symbol full-class-name (string-append "get-" name))))
+                           (member-symbol full-class-name (string-append "get-" name
+                                                                         (if is-static
+                                                                             "-static-property"
+                                                                           ""))
+                                          is-static)))
              
              (set-function (find-tag-atom :set-function prop))
              (setter-sym (when set-function
-                           (member-symbol full-class-name (string-append "set-" name))))
-             (is-static (find-tag-atom :static prop)))
+                           (member-symbol full-class-name (string-append "set-" name
+                                                                         (if is-static
+                                                                             "-static-property"
+                                                                           ""))
+                                          is-static))))
          (when get-function
              (push (if is-static
                    `(defun ,method-sym ()
-                      (call-prop-get ',class-sym ,name ',getter-sym nil))
+                      (call-prop-get ',class-sym ',(intern name) ',getter-sym nil))
                  `(defun ,method-sym (this)
-                    (call-prop-get ',class-sym ,name ',getter-sym this)))
+                    (call-prop-get ',class-sym ',(intern name) ',getter-sym this)))
                defs)
              (push `(setf (get ',method-sym :foil-info)
                       '((:member-of . ,(intern full-class-name))
@@ -712,9 +722,9 @@ static fields also get a symbol-macro *classname.fieldname*"
          (when set-function
              (push (if is-static
                        `(defun ,setter-sym (val)
-                          (call-prop-set ',class-sym ,name ',setter-sym nil val))
+                          (call-prop-set ',class-sym ',(intern name) ',setter-sym nil val))
                      `(defun ,setter-sym (this val)
-                        (call-prop-set ',class-sym ,name ',setter-sym this val)))
+                        (call-prop-set ',class-sym ',(intern name) ',setter-sym this val)))
                    defs)
              (push `(defsetf ,method-sym ,setter-sym) defs)
              (push `(setf (get ',setter-sym :foil-info)

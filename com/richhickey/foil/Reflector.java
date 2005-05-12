@@ -318,6 +318,13 @@ public class Reflector implements IReflector
             for(int i=0;i<methods.length;i++)
                 {
                 Method method = methods[i];
+//                if((method.getDeclaringClass() == Object.class
+                if((method.getDeclaringClass() != c)
+                		|| (method.getName().equals("toString")
+                				|| method.getName().equals("equals")
+								|| method.getName().equals("hasCode"))
+							&& c != Object.class)
+                	continue;
                 w.write('(');
                 
 //                w.write("(:mref ");
@@ -407,8 +414,12 @@ public class Reflector implements IReflector
             for(int i=0;i<props.length;i++)
                 {
                 PropertyDescriptor prop = props[i];
-                //we don't support indexed props yet
-                if(prop instanceof IndexedPropertyDescriptor)
+                Method readm = prop.getReadMethod();
+                //we don't support indexed or write-only props
+                if(prop instanceof IndexedPropertyDescriptor
+                		|| readm == null
+						|| readm.getDeclaringClass() != c
+						|| propertyOverlapsFieldOrMethod(prop,methods,fields))
                 	continue;
                 w.write('(');
 
@@ -418,16 +429,15 @@ public class Reflector implements IReflector
 
                 //only create this section if static
                 //never true for Java
-                w.write("(:static ");
-                baseMarshaller.marshallAtom(Boolean.FALSE,
-                        					w,IBaseMarshaller.MARSHALL_ID,0);
-                w.write(')');
+                //w.write("(:static ");
+                //baseMarshaller.marshallAtom(Boolean.FALSE,
+                //        					w,IBaseMarshaller.MARSHALL_ID,0);
+                //w.write(')');
 
     	        w.write("(:type");
     	        writeTypeSymbol(prop.getPropertyType(),w);
     	        w.write(')');
 
-                Method readm = prop.getReadMethod();
                 if(readm != null)
                     {
                     w.write("(:get-doc ");
@@ -455,6 +465,20 @@ public class Reflector implements IReflector
 
         w.write(')');
         }
+    
+    boolean propertyOverlapsFieldOrMethod(PropertyDescriptor prop,Method[] methods,Field[] fields){
+    	String name = prop.getName();
+    	for(int i=0;i<fields.length;i++){
+    		if(fields[i].getName().equalsIgnoreCase(name))
+    			return true;
+    	}
+    	for(int i=0;i<methods.length;i++){
+    		if(methods[i].getName().equalsIgnoreCase(name))
+    			return true;
+    	}
+    		
+    	return false;
+    }
     
     void reflectMethodSignature(Method method, Writer w)
     	throws IOException
