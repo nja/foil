@@ -117,7 +117,7 @@ public class MessageReader implements IReader
 	    if(RuntimeServer.isMessage(":box",args))
 	        {
 	    	Class c = RuntimeServer.typeArg(args.get(1));
-	    	if(c == Boolean.class)
+	    	if(c == boolean.class)
 	    		return (args.get(2) == null) ? Boolean.FALSE : Boolean.TRUE;
 	    	
 	        return Reflector.numericConvert(c,args.get(2));
