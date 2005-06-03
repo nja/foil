@@ -320,9 +320,10 @@ public class Reflector implements IReflector
                 Method method = methods[i];
 //                if((method.getDeclaringClass() == Object.class
                 if((method.getDeclaringClass() != c)
-                		|| (method.getName().equals("toString")
-                				|| method.getName().equals("equals")
-								|| method.getName().equals("hasCode"))
+                		|| (!Modifier.isStatic(method.getModifiers())
+                				&&(method.getName().equals("toString")
+                						|| method.getName().equals("equals")
+										|| method.getName().equals("hashCode")))
 							&& c != Object.class)
                 	continue;
                 w.write('(');
