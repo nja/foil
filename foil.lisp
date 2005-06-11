@@ -32,6 +32,7 @@
    :make-new
    :make-new-vector
    :vref
+   :vset
    :vlength
    :box
    :box-vector
@@ -814,9 +815,11 @@ The resulting file will not need a VM running to either compile or load"
 (defun vref (vec idx)
   (send-message :vget vec *marshalling-flags* *marshalling-depth* idx))
 
-(defun (setf vref) (val vec idx)
+(defun vset (vec idx val)
   (send-message :vset vec idx val)
   val)
+
+(defsetf vref vset)
 
 (defun vlength (vec)
   (send-message :vlen vec))
