@@ -97,7 +97,8 @@
         #+lispworks #'clos:ensure-class
         #+cmu #'pcl:ensure-class
         #+sbcl #'sb-mop:ensure-class
-        #+allegro #'mop:ensure-class))
+        #+allegro #'mop:ensure-class
+        #+ccl #'ccl:ensure-class))
  
 
 ;;;;; end porting section ;;;;;;;;;;;;;;;;;;;;;;;;;;
