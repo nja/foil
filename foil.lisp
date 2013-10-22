@@ -88,7 +88,7 @@
 (defun make-value-weak-hash-table ()
   #+:lispworks(make-hash-table :weak-kind :value)
   #+cmu (make-hash-table :weak-p t)
-  #+sbcl (make-hash-table :weak-p nil)
+  #+sbcl (make-hash-table :weakness :value)
   #+allegro (make-hash-table :values :weak))
 
 
